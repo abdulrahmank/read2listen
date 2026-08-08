@@ -225,7 +225,8 @@ tr:last-child td { border-bottom: none; }
 .dropzone.over { border-color: var(--accent); background: var(--accent-soft); }
 .dropzone.over strong, .dropzone.over span { color: var(--accent); }
 .dropzone.busy { pointer-events: none; opacity: 0.7; }
-.dropzone-icon { font-size: 26px; }
+.dropzone-icon { color: var(--muted); }
+.dropzone.over .dropzone-icon { color: var(--accent); }
 
 .doc-grid {
   margin-top: 16px;
@@ -248,7 +249,7 @@ tr:last-child td { border-bottom: none; }
 .doc-card:hover { border-color: var(--accent); }
 .doc-card.selected { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-.doc-icon { font-size: 28px; line-height: 1; }
+.doc-icon { line-height: 1; display: inline-flex; }
 .doc-title { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
 .doc-file { font-size: 12px; color: var(--muted); word-break: break-all; }
 .doc-meta { font-size: 12px; color: var(--muted); }

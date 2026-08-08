@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useDocuments } from '../composables/useDocuments.js';
 import { useTenant } from '../composables/useTenant.js';
+import FileIcon from '../components/FileIcon.vue';
 
 const { documents, loading, error, load, create, update, remove } = useDocuments();
 const { isAdmin } = useTenant();
@@ -25,13 +26,6 @@ watch(selected, (doc) => {
 });
 
 onMounted(load);
-
-const ICONS = {
-  pdf: '📕', doc: '📘', docx: '📘', xls: '📗', xlsx: '📗', csv: '📗',
-  ppt: '📙', pptx: '📙', md: '📝', txt: '📝',
-  png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', svg: '🖼️'
-};
-const iconFor = (doc) => ICONS[doc.filename.split('.').pop()?.toLowerCase()] || '📄';
 
 const formatSize = (bytes) => {
   if (!bytes && bytes !== 0) return '';
@@ -127,7 +121,10 @@ async function removeSelected() {
             <strong>Uploading {{ uploadingCount }} file{{ uploadingCount === 1 ? '' : 's' }}…</strong>
           </template>
           <template v-else>
-            <div class="dropzone-icon">⬆️</div>
+            <svg class="dropzone-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 3l5.5 5.5h-3.5V15h-4V8.5H6.5L12 3z" />
+              <rect x="4" y="18" width="16" height="3" rx="1.5" />
+            </svg>
             <strong>Drop files here</strong>
             <span>or click to browse — details can be filled in after</span>
           </template>
@@ -141,7 +138,7 @@ async function removeSelected() {
             :class="{ selected: doc._id === selectedId }"
             @click="selectedId = doc._id === selectedId ? null : doc._id"
           >
-            <div class="doc-icon">{{ iconFor(doc) }}</div>
+            <div class="doc-icon"><FileIcon :filename="doc.filename" /></div>
             <div class="doc-title">{{ doc.name }}</div>
             <div class="doc-file">{{ doc.filename }}</div>
             <div class="doc-meta">v{{ doc.version }} · {{ doc.date }}</div>
@@ -159,7 +156,7 @@ async function removeSelected() {
         </header>
 
         <div class="doc-sidebar-file">
-          <span class="doc-icon">{{ iconFor(selected) }}</span>
+          <FileIcon :filename="selected.filename" :size="34" />
           <div>
             <div class="doc-file">{{ selected.filename }}</div>
             <div class="doc-meta">{{ formatSize(selected.size) }} · uploaded {{ selected.uploadedAt?.slice(0, 10) }}</div>
