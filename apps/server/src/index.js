@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import logger from './logger.js';
 import { connectDb } from './db.js';
 import { createApp } from './app.js';
-import { CodexExecutor } from './CodexExecutor.js';
+import { CodexExecutor, logCodexVersion } from './CodexExecutor.js';
 import { TenantRepo } from './repos/TenantRepo.js';
 import { DocumentRepo } from './repos/DocumentRepo.js';
 import { ChatRepo } from './repos/ChatRepo.js';
@@ -18,6 +18,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = path.resolve(__dirname, '../../web/dist');
 
 dotenv.config();
+
+logCodexVersion();
 
 const { db } = await connectDb();
 

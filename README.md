@@ -102,6 +102,7 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
 | `DEFAULT_ADMIN_KEY` | no | generated | Admin key for the default tenant (first boot only) |
 | `DEFAULT_MEMBER_KEY` | no | generated | Member key for the default tenant (first boot only) |
 | `MAX_UPLOAD_MB` | no | `25` | Upload size limit |
+| `CODEX_TIMEOUT_MS` | no | `120000` | Kill a codex run after this long; the chat request fails cleanly instead of hanging |
 | `CORS_ORIGIN` | no | `*` | CORS origin for the API |
 | `LOG_LEVEL` | no | `info` | `error` \| `warn` \| `info` \| `debug` |
 
