@@ -12,7 +12,7 @@ const route = useRoute();
 const router = useRouter();
 
 const chatsStore = useChats();
-const { chat, sending, error, load, send, addDocuments } = useChat();
+const { chat, sending, error, streamingReply, load, send, addDocuments } = useChat();
 const { documents, load: loadDocuments } = useDocuments();
 
 const showAttach = ref(false);
@@ -95,7 +95,7 @@ async function onSend(content) {
 
       <div v-if="error" class="error-banner">{{ error }}</div>
 
-      <MessageList :messages="chat.messages" :sending="sending" />
+      <MessageList :messages="chat.messages" :sending="sending" :streaming-reply="streamingReply" />
       <MessageInput :disabled="sending" @send="onSend" />
     </section>
 

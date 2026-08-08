@@ -7,10 +7,12 @@ import { useApi } from './useApi.js';
  * tenant's documents mid-conversation.
  */
 export function useChat() {
-  const { request } = useApi();
+  const { request, stream } = useApi();
   const chat = ref(null);
   const sending = ref(false);
   const error = ref('');
+  // The assistant's reply so far, streamed over SSE while the agent works.
+  const streamingReply = ref('');
 
   async function load(chatId) {
     error.value = '';
@@ -36,9 +38,11 @@ export function useChat() {
     });
 
     try {
-      const data = await request(`/api/chats/${chat.value._id}/messages`, {
-        method: 'POST',
-        body: { content }
+      const data = await stream(`/api/chats/${chat.value._id}/messages`, {
+        body: { content },
+        onEvent: (event, payload) => {
+          if (event === 'chunk') streamingReply.value += payload.text;
+        }
       });
       chat.value.messages = data.messages;
     } catch (e) {
@@ -46,6 +50,7 @@ export function useChat() {
       error.value = e.message;
     } finally {
       sending.value = false;
+      streamingReply.value = '';
     }
   }
 
@@ -58,5 +63,5 @@ export function useChat() {
     chat.value.documentIds = data.chat.documentIds;
   }
 
-  return { chat, sending, error, load, send, addDocuments };
+  return { chat, sending, error, streamingReply, load, send, addDocuments };
 }

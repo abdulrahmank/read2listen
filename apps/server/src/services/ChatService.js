@@ -56,7 +56,7 @@ export class ChatService {
     return this.chatRepo.addDocuments(tenantId, chatId, documentIds);
   }
 
-  async sendMessage(tenant, chatId, content) {
+  async sendMessage(tenant, chatId, content, { onProgress } = {}) {
     const text = String(content ?? '').trim();
     if (!text) {
       throw new HttpError(400, 'Message content is required');
@@ -76,7 +76,7 @@ export class ChatService {
 
     // cwd is the tenancy boundary: the agent sees this tenant's files only.
     const cwd = await ensureTenantRoot(tenant.id);
-    const result = await this.executor.execute(prompt, { cwd });
+    const result = await this.executor.execute(prompt, { cwd, onProgress });
     const reply = result.output.trim();
 
     const now = new Date().toISOString();

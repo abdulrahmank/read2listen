@@ -3,13 +3,14 @@ import { ref, watch, nextTick } from 'vue';
 
 const props = defineProps({
   messages: { type: Array, required: true },
-  sending: { type: Boolean, default: false }
+  sending: { type: Boolean, default: false },
+  streamingReply: { type: String, default: '' }
 });
 
 const scroller = ref(null);
 
 watch(
-  () => [props.messages.length, props.sending],
+  () => [props.messages.length, props.sending, props.streamingReply],
   async () => {
     await nextTick();
     scroller.value?.scrollTo({ top: scroller.value.scrollHeight, behavior: 'smooth' });
@@ -34,6 +35,9 @@ const formatTime = (iso) =>
       {{ message.content }}
       <span class="meta">{{ formatTime(message.timestamp) }}</span>
     </div>
-    <div v-if="sending" class="typing">Assistant is reading the documents…</div>
+    <div v-if="sending && streamingReply" class="bubble assistant">
+      {{ streamingReply }}
+    </div>
+    <div v-else-if="sending" class="typing">Assistant is reading the documents…</div>
   </div>
 </template>

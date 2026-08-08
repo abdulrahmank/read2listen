@@ -113,6 +113,64 @@ describe('Chat sessions', () => {
     expect(ctx.executor.lastCall.prompt).toContain('benefits.md');
   });
 
+  test('messages stream over SSE when the client asks for it', async () => {
+    const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
+
+    const res = await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .set('Accept', 'text/event-stream')
+      .send({ content: 'Stream this' })
+      .buffer(true)
+      .parse((res, cb) => {
+        let text = '';
+        res.on('data', (d) => (text += d));
+        res.on('end', () => cb(null, text));
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toContain('text/event-stream');
+
+    const events = res.body
+      .split('\n\n')
+      .filter((raw) => raw.trim())
+      .map((raw) => {
+        const event = raw.match(/^event: (.+)$/m)?.[1];
+        const data = JSON.parse(raw.match(/^data: (.+)$/m)?.[1]);
+        return { event, data };
+      });
+
+    // stdout chunks stream first, then the done event carries the full turn
+    const chunks = events.filter((e) => e.event === 'chunk');
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.map((e) => e.data.text).join('')).toBe('This is the assistant reply.');
+
+    const done = events[events.length - 1];
+    expect(done.event).toBe('done');
+    expect(done.data.reply).toBe('This is the assistant reply.');
+    expect(done.data.messages.map((m) => m.role)).toEqual(['user', 'assistant']);
+
+    // the turn is persisted exactly as in the JSON path
+    const fetched = await request(ctx.app)
+      .get(`/api/chats/${chat._id}`)
+      .set('X-API-Key', KEYS.acmeMember);
+    expect(fetched.body.chat.messages).toHaveLength(2);
+  });
+
+  test('SSE requests still get ordinary 4xx JSON for validation errors', async () => {
+    const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
+
+    const res = await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .set('Accept', 'text/event-stream')
+      .send({ content: '   ' });
+
+    expect(res.status).toBe(400);
+    expect(res.headers['content-type']).toContain('application/json');
+    expect(ctx.executor.calls).toHaveLength(0);
+  });
+
   test('empty messages are rejected without calling the executor', async () => {
     const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
 

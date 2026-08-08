@@ -106,12 +106,19 @@ export class InMemoryChatRepo {
       .map(({ messages, ...summary }) => summary);
   }
 
+  // Like the Mongo driver, reads return detached copies — callers must not
+  // be able to mutate the store through a find result.
   async findById(tenantId, chatId) {
+    const chat = this.stored(tenantId, chatId);
+    return chat ? { ...chat, messages: [...chat.messages], documentIds: [...chat.documentIds] } : null;
+  }
+
+  stored(tenantId, chatId) {
     return this.chats.find((c) => c._id === chatId && c.tenantId === tenantId) || null;
   }
 
   async appendMessages(tenantId, chatId, messages) {
-    const chat = await this.findById(tenantId, chatId);
+    const chat = this.stored(tenantId, chatId);
     if (chat) {
       chat.messages.push(...messages);
       chat.updatedAt = new Date().toISOString();
@@ -119,7 +126,7 @@ export class InMemoryChatRepo {
   }
 
   async addDocuments(tenantId, chatId, documentIds) {
-    const chat = await this.findById(tenantId, chatId);
+    const chat = this.stored(tenantId, chatId);
     if (chat) {
       for (const id of documentIds) {
         if (!chat.documentIds.includes(id)) chat.documentIds.push(id);

@@ -10,6 +10,13 @@ export class FakeExecutor {
 
   async execute(prompt, options = {}) {
     this.calls.push({ prompt, ...options });
+    // Mimic CodexExecutor: stdout arrives in chunks before the promise
+    // resolves, so SSE tests can assert on streamed progress.
+    if (typeof options.onProgress === 'function') {
+      for (const chunk of this.reply.split(/(?<= )/)) {
+        options.onProgress({ stream: 'stdout', chunk });
+      }
+    }
     return { output: this.reply, executionTime: 1 };
   }
 
