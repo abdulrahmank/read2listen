@@ -29,6 +29,11 @@ export function createDocumentRoutes(documentService, { requireAdmin }) {
     })
   );
 
+  router.patch('/documents/:documentId', requireAdmin, asyncHandler(async (req, res) => {
+    const document = await documentService.update(req.tenant, req.params.documentId, req.body || {});
+    res.json({ success: true, document });
+  }));
+
   router.delete('/documents/:documentId', requireAdmin, asyncHandler(async (req, res) => {
     const document = await documentService.remove(req.tenant, req.params.documentId);
     res.json({ success: true, message: `Document ${document.filename} deleted` });

@@ -73,6 +73,13 @@ export class InMemoryDocumentRepo {
     return this.documents.some((d) => d.tenantId === tenantId && d.filename === filename);
   }
 
+  async update(tenantId, documentId, fields) {
+    const doc = this.documents.find((d) => d._id === documentId && d.tenantId === tenantId);
+    if (!doc) return null;
+    Object.assign(doc, fields);
+    return { ...doc };
+  }
+
   async remove(tenantId, documentId) {
     const before = this.documents.length;
     this.documents = this.documents.filter((d) => !(d._id === documentId && d.tenantId === tenantId));

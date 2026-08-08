@@ -27,12 +27,23 @@ export function useDocuments() {
   async function create({ file, name, version, date, use }) {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('name', name);
-    formData.append('version', version);
-    formData.append('date', date);
-    formData.append('use', use);
-    await upload('/api/documents', formData);
+    // Metadata is optional — the server defaults anything omitted, and the
+    // admin refines details from the document sidebar afterwards.
+    for (const [key, value] of Object.entries({ name, version, date, use })) {
+      if (value !== undefined && value !== '') formData.append(key, value);
+    }
+    const data = await upload('/api/documents', formData);
     await load();
+    return data.document;
+  }
+
+  async function update(documentId, fields) {
+    const data = await request(`/api/documents/${documentId}`, {
+      method: 'PATCH',
+      body: fields
+    });
+    await load();
+    return data.document;
   }
 
   async function remove(documentId) {
@@ -40,5 +51,5 @@ export function useDocuments() {
     await load();
   }
 
-  return { documents, loading, error, load, create, remove };
+  return { documents, loading, error, load, create, update, remove };
 }

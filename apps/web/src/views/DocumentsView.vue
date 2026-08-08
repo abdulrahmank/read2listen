@@ -1,50 +1,105 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useDocuments } from '../composables/useDocuments.js';
 import { useTenant } from '../composables/useTenant.js';
 
-const { documents, loading, error, load, create, remove } = useDocuments();
+const { documents, loading, error, load, create, update, remove } = useDocuments();
 const { isAdmin } = useTenant();
 
-const form = reactive({ name: '', version: '', date: '', use: '' });
-const fileInput = ref(null);
-const submitting = ref(false);
-const formError = ref('');
+const picker = ref(null);
+const dragOver = ref(0);
+const uploadingCount = ref(0);
+const actionError = ref('');
+
+const selectedId = ref(null);
+const selected = computed(() => documents.value.find((d) => d._id === selectedId.value) || null);
+
+// The sidebar edits a draft; Save PATCHes it. Re-seed whenever the selection
+// (or its server state) changes.
+const draft = reactive({ name: '', version: '', date: '', use: '' });
+const saving = ref(false);
+const saved = ref(false);
+watch(selected, (doc) => {
+  if (doc) Object.assign(draft, { name: doc.name, version: doc.version, date: doc.date, use: doc.use });
+  saved.value = false;
+});
 
 onMounted(load);
 
-async function submit() {
-  const file = fileInput.value?.files?.[0];
-  formError.value = '';
-  if (!file) {
-    formError.value = 'Choose a file to upload.';
-    return;
-  }
+const ICONS = {
+  pdf: '📕', doc: '📘', docx: '📘', xls: '📗', xlsx: '📗', csv: '📗',
+  ppt: '📙', pptx: '📙', md: '📝', txt: '📝',
+  png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', svg: '🖼️'
+};
+const iconFor = (doc) => ICONS[doc.filename.split('.').pop()?.toLowerCase()] || '📄';
 
-  submitting.value = true;
+const formatSize = (bytes) => {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+async function uploadFiles(files) {
+  if (!files.length) return;
+  actionError.value = '';
+  uploadingCount.value = files.length;
+  let lastUploaded = null;
   try {
-    await create({ file, ...form });
-    Object.assign(form, { name: '', version: '', date: '', use: '' });
-    fileInput.value.value = '';
+    for (const file of files) {
+      lastUploaded = await create({ file });
+      uploadingCount.value -= 1;
+    }
+    // Open the sidebar on the newest upload so its details get filled in.
+    if (lastUploaded) selectedId.value = lastUploaded._id;
   } catch (e) {
-    formError.value = e.message;
+    actionError.value = e.message;
   } finally {
-    submitting.value = false;
+    uploadingCount.value = 0;
   }
 }
 
-async function removeDocument(doc) {
-  if (!window.confirm(`Delete "${doc.name}" (${doc.filename})?`)) return;
+function onDrop(event) {
+  dragOver.value = 0;
+  if (!isAdmin()) return;
+  uploadFiles([...event.dataTransfer.files]);
+}
+
+function onPick(event) {
+  uploadFiles([...event.target.files]);
+  event.target.value = '';
+}
+
+async function saveDetails() {
+  if (!selected.value) return;
+  actionError.value = '';
+  saving.value = true;
+  saved.value = false;
+  try {
+    await update(selected.value._id, { ...draft });
+    saved.value = true;
+  } catch (e) {
+    actionError.value = e.message;
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function removeSelected() {
+  const doc = selected.value;
+  if (!doc || !window.confirm(`Delete "${doc.name}" (${doc.filename})?`)) return;
+  actionError.value = '';
   try {
     await remove(doc._id);
+    selectedId.value = null;
   } catch (e) {
-    formError.value = e.message;
+    actionError.value = e.message;
   }
 }
 </script>
 
 <template>
-  <div class="page">
+  <div class="page wide">
     <h1>Document library</h1>
 
     <p v-if="!isAdmin()" class="empty-state" style="text-align: left; padding: 0 0 16px">
@@ -52,61 +107,100 @@ async function removeDocument(doc) {
       to add or remove documents.
     </p>
 
-    <form v-if="isAdmin()" class="panel form-grid" @submit.prevent="submit">
-      <div class="full">
-        <label>File</label>
-        <input type="file" ref="fileInput" />
-      </div>
-      <div>
-        <label>Name</label>
-        <input v-model="form.name" placeholder="Employee Handbook" required />
-      </div>
-      <div>
-        <label>Version</label>
-        <input v-model="form.version" placeholder="1.0" required />
-      </div>
-      <div>
-        <label>Date</label>
-        <input v-model="form.date" type="date" required />
-      </div>
-      <div>
-        <label>Use</label>
-        <input v-model="form.use" placeholder="What should the assistant use this for?" required />
-      </div>
-      <div class="full">
-        <button class="primary" type="submit" :disabled="submitting">
-          {{ submitting ? 'Uploading…' : 'Upload document' }}
-        </button>
-      </div>
-    </form>
-
-    <div v-if="formError" class="error-banner">{{ formError }}</div>
+    <div v-if="actionError" class="error-banner">{{ actionError }}</div>
     <div v-if="error" class="error-banner">{{ error }}</div>
 
-    <div class="panel" style="margin-top: 16px">
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th><th>File</th><th>Version</th><th>Date</th><th>Use</th>
-            <th v-if="isAdmin()"></th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="doc in documents" :key="doc._id">
-            <td>{{ doc.name }}</td>
-            <td>{{ doc.filename }}</td>
-            <td>{{ doc.version }}</td>
-            <td>{{ doc.date }}</td>
-            <td>{{ doc.use }}</td>
-            <td v-if="isAdmin()">
-              <button class="danger" @click="removeDocument(doc)">Delete</button>
-            </td>
-          </tr>
-          <tr v-if="!loading && documents.length === 0">
-            <td colspan="6" class="empty-state">No documents uploaded yet.</td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="docs-layout">
+      <div class="docs-main">
+        <div
+          v-if="isAdmin()"
+          class="dropzone"
+          :class="{ over: dragOver > 0, busy: uploadingCount > 0 }"
+          @click="picker.click()"
+          @dragenter.prevent="dragOver++"
+          @dragover.prevent
+          @dragleave.prevent="dragOver--"
+          @drop.prevent="onDrop"
+        >
+          <input type="file" multiple hidden ref="picker" @change="onPick" />
+          <template v-if="uploadingCount > 0">
+            <strong>Uploading {{ uploadingCount }} file{{ uploadingCount === 1 ? '' : 's' }}…</strong>
+          </template>
+          <template v-else>
+            <div class="dropzone-icon">⬆️</div>
+            <strong>Drop files here</strong>
+            <span>or click to browse — details can be filled in after</span>
+          </template>
+        </div>
+
+        <div class="doc-grid">
+          <div
+            v-for="doc in documents"
+            :key="doc._id"
+            class="doc-card"
+            :class="{ selected: doc._id === selectedId }"
+            @click="selectedId = doc._id === selectedId ? null : doc._id"
+          >
+            <div class="doc-icon">{{ iconFor(doc) }}</div>
+            <div class="doc-title">{{ doc.name }}</div>
+            <div class="doc-file">{{ doc.filename }}</div>
+            <div class="doc-meta">v{{ doc.version }} · {{ doc.date }}</div>
+          </div>
+          <div v-if="!loading && documents.length === 0" class="empty-state" style="grid-column: 1 / -1">
+            No documents yet{{ isAdmin() ? ' — drop a file above to get started.' : '.' }}
+          </div>
+        </div>
+      </div>
+
+      <aside v-if="selected" class="doc-sidebar panel">
+        <header>
+          <h2>Document details</h2>
+          <button class="close" @click="selectedId = null" aria-label="Close">✕</button>
+        </header>
+
+        <div class="doc-sidebar-file">
+          <span class="doc-icon">{{ iconFor(selected) }}</span>
+          <div>
+            <div class="doc-file">{{ selected.filename }}</div>
+            <div class="doc-meta">{{ formatSize(selected.size) }} · uploaded {{ selected.uploadedAt?.slice(0, 10) }}</div>
+          </div>
+        </div>
+
+        <template v-if="isAdmin()">
+          <div>
+            <label>Name</label>
+            <input v-model="draft.name" placeholder="Employee Handbook" />
+          </div>
+          <div>
+            <label>Version</label>
+            <input v-model="draft.version" placeholder="1.0" />
+          </div>
+          <div>
+            <label>Date</label>
+            <input v-model="draft.date" type="date" />
+          </div>
+          <div>
+            <label>Use</label>
+            <textarea
+              v-model="draft.use"
+              rows="3"
+              placeholder="What should the assistant use this document for?"
+            ></textarea>
+          </div>
+          <button class="primary" :disabled="saving" @click="saveDetails">
+            {{ saving ? 'Saving…' : 'Save details' }}
+          </button>
+          <span v-if="saved" class="saved-note">Saved ✓</span>
+          <button class="danger" @click="removeSelected">Delete document</button>
+        </template>
+
+        <dl v-else class="doc-details">
+          <dt>Name</dt><dd>{{ selected.name }}</dd>
+          <dt>Version</dt><dd>{{ selected.version }}</dd>
+          <dt>Date</dt><dd>{{ selected.date }}</dd>
+          <dt>Use</dt><dd>{{ selected.use }}</dd>
+        </dl>
+      </aside>
     </div>
   </div>
 </template>

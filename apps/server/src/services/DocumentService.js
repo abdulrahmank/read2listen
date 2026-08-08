@@ -21,14 +21,25 @@ export class DocumentService {
     this.documentRepo = documentRepo;
   }
 
-  async create(tenant, { name, version, date, use }, file) {
+  async create(tenant, meta = {}, file) {
     if (!file) {
       throw new HttpError(400, 'A document file is required');
     }
-    for (const [field, value] of Object.entries({ name, version, date, use })) {
-      if (!value || !String(value).trim()) {
-        throw new HttpError(400, `Document ${field} is required`);
-      }
+
+    // Drag-and-drop uploads arrive with no metadata: default everything so
+    // the file lands immediately, and let the admin refine details afterwards
+    // (PATCH /documents/:id) from the document sidebar.
+    const stem = path.basename(file.originalname, path.extname(file.originalname));
+    const defaults = {
+      name: stem || file.originalname,
+      version: '1',
+      date: new Date().toISOString().slice(0, 10),
+      use: 'General reference'
+    };
+    const fields = {};
+    for (const key of ['name', 'version', 'date', 'use']) {
+      const given = meta[key] !== undefined ? String(meta[key]).trim() : '';
+      fields[key] = given || defaults[key];
     }
 
     assertWithinQuota(tenant, 'document.upload');
@@ -40,15 +51,43 @@ export class DocumentService {
 
     const document = await this.documentRepo.create(tenant.id, {
       filename,
-      name: String(name).trim(),
-      version: String(version).trim(),
-      date: String(date).trim(),
-      use: String(use).trim(),
+      ...fields,
       size: file.buffer.length
     });
 
     await this.regenerateAgentsMd(tenant);
     logger.info(`Document uploaded: ${filename}`, { tenantId: tenant.id });
+    return document;
+  }
+
+  /**
+   * Metadata-only edit (name/version/date/use) — the file itself is
+   * immutable; re-upload to change content. AGENTS.md is regenerated so the
+   * agent always sees current descriptions.
+   */
+  async update(tenant, documentId, patch = {}) {
+    const existing = await this.documentRepo.findById(tenant.id, documentId);
+    if (!existing) {
+      throw new HttpError(404, `Document ${documentId} not found`);
+    }
+
+    const fields = {};
+    for (const key of ['name', 'version', 'date', 'use']) {
+      if (patch[key] === undefined) continue;
+      const value = String(patch[key]).trim();
+      if (!value) {
+        throw new HttpError(400, `Document ${key} cannot be empty`);
+      }
+      fields[key] = value;
+    }
+    if (Object.keys(fields).length === 0) {
+      throw new HttpError(400, 'Nothing to update — provide name, version, date, or use');
+    }
+
+    const document = await this.documentRepo.update(tenant.id, documentId, fields);
+    await this.regenerateAgentsMd(tenant);
+
+    logger.info(`Document updated: ${existing.filename}`, { tenantId: tenant.id });
     return document;
   }
 

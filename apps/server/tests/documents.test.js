@@ -36,17 +36,59 @@ describe('Document library', () => {
     expect(agents).toContain('| handbook.md | Employee Handbook | 1.0 | 2026-01-15 | Answers HR policy questions |');
   });
 
-  test('upload requires all metadata fields', async () => {
+  test('upload without metadata falls back to sensible defaults', async () => {
     const res = await request(ctx.app)
       .post('/api/documents')
       .set('X-API-Key', KEYS.acmeAdmin)
-      .field('name', 'No use given')
-      .field('version', '1')
-      .field('date', '2026-01-01')
-      .attach('file', Buffer.from('x'), 'x.txt');
+      .attach('file', Buffer.from('quarterly numbers'), 'Q3 Report.pdf');
 
-    expect(res.status).toBe(400);
-    expect(res.body.error).toContain('use is required');
+    expect(res.status).toBe(201);
+    const doc = res.body.document;
+    expect(doc.name).toBe('Q3 Report');
+    expect(doc.version).toBe('1');
+    expect(doc.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(doc.use).toBe('General reference');
+  });
+
+  test('admin can edit metadata afterwards and AGENTS.md follows', async () => {
+    const uploaded = await uploadDocument(request, ctx.app, KEYS.acmeAdmin);
+    const docId = uploaded.body.document._id;
+
+    const res = await request(ctx.app)
+      .patch(`/api/documents/${docId}`)
+      .set('X-API-Key', KEYS.acmeAdmin)
+      .send({ name: 'HR Handbook', use: 'Vacation and conduct questions' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.document.name).toBe('HR Handbook');
+    expect(res.body.document.version).toBe('1.0'); // untouched fields survive
+
+    const agents = await fs.readFile(
+      path.join(tenantDirOf(ctx.tenants.acme), 'AGENTS.md'), 'utf-8');
+    expect(agents).toContain('| handbook.md | HR Handbook | 1.0 | 2026-01-15 | Vacation and conduct questions |');
+  });
+
+  test('metadata edits reject empty values, member keys, and other tenants', async () => {
+    const uploaded = await uploadDocument(request, ctx.app, KEYS.acmeAdmin);
+    const docId = uploaded.body.document._id;
+
+    const empty = await request(ctx.app)
+      .patch(`/api/documents/${docId}`)
+      .set('X-API-Key', KEYS.acmeAdmin)
+      .send({ name: '   ' });
+    expect(empty.status).toBe(400);
+
+    const member = await request(ctx.app)
+      .patch(`/api/documents/${docId}`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ name: 'nope' });
+    expect(member.status).toBe(403);
+
+    const crossTenant = await request(ctx.app)
+      .patch(`/api/documents/${docId}`)
+      .set('X-API-Key', KEYS.globexAdmin)
+      .send({ name: 'nope' });
+    expect(crossTenant.status).toBe(404);
   });
 
   test('upload requires a file', async () => {

@@ -39,6 +39,14 @@ export class DocumentRepo {
     return Boolean(found);
   }
 
+  async update(tenantId, documentId, fields) {
+    return this.collection.findOneAndUpdate(
+      { _id: documentId, tenantId },
+      { $set: fields },
+      { returnDocument: 'after' }
+    );
+  }
+
   async remove(tenantId, documentId) {
     const { deletedCount } = await this.collection.deleteOne({ _id: documentId, tenantId });
     return deletedCount > 0;
