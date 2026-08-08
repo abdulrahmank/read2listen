@@ -30,8 +30,10 @@ seams, never by forking logic.
 
 ## Chat pipeline (deliberately no LangGraph, no approval flow)
 
-resolve tenant → load chat history from MongoDB (empty array if new) → write
-history to `.chats/<chatId>.json` in the tenant dir → build "You are a chat
+resolve tenant → screen the message through the injected `IntentGuard`
+(heuristics + a read-only codex classifier; blocked messages 422 and never
+reach the agent or history) → load chat history from MongoDB (empty array if
+new) → write history to `.chats/<chatId>.json` in the tenant dir → build "You are a chat
 assistant…" prompt (history file path + last few turns inline + this chat's
 document list; a chat with no documents attached grounds on the tenant's
 whole library) → `codex exec` in the tenant dir → append user+assistant

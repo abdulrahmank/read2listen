@@ -106,6 +106,7 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
 | `CODEX_TIMEOUT_MS` | no | `600000` | Kill a codex run after this long; the chat request fails cleanly instead of hanging |
 | `CODEX_SANDBOX` | no | `read-only` | codex's own sandbox mode. The Docker image sets `danger-full-access`: the container is the isolation boundary, and bubblewrap can't run under Docker's default seccomp profile |
 | `MOCK_EXECUTOR` | no | `false` | `true` = built-in demo replies, no OpenAI account needed |
+| `INTENT_GUARD` | no | `full` | Message screening before the agent runs: `full` (heuristics + codex classifier), `heuristic` (regex only, no extra model call), `off` |
 | `CORS_ORIGIN` | no | `*` | CORS origin for the API |
 | `LOG_LEVEL` | no | `info` | `error` \| `warn` \| `info` \| `debug` |
 
@@ -116,13 +117,21 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
 - Uploaded filenames are sanitized and every tenant path is resolved through a single guarded
   module (`tenantDir.js`) — path traversal attempts are rejected, and `AGENTS.md` is reserved
   (an upload by that name is renamed, never allowed to impersonate the generated file).
-- **Known limitation:** directory isolation controls what the agent is *pointed at*, but
-  `codex exec` runs as the server process. A hostile prompt could ask the agent to read outside
-  its working directory — and in Docker, codex's own sandbox is disabled
-  (`CODEX_SANDBOX=danger-full-access`) because the container is the isolation boundary. For
-  self-hosting among trusted tenants this is usually acceptable; per-tenant OS-level sandboxing
-  is the hosted edition's answer and a roadmap item here. Do not host adversarial tenants on a
-  bare install.
+- **Intent guard (defense in depth).** Every chat message is screened before the agent runs
+  (`INTENT_GUARD`, default `full`): fast heuristics block obvious escape/injection attempts
+  (path traversal, credential/env fishing, shell commands, "ignore your instructions"), and
+  anything subtler gets a read-only codex classification pass that must clear the message before
+  the real answer runs. Blocked messages never reach the agent and are not persisted. The chat
+  prompt is also hardened to refuse reading outside its directory and to treat instructions
+  embedded in documents as data.
+- **Known limitation:** the guard raises the bar but is **not** a boundary. Directory isolation
+  controls what the agent is *pointed at*, but `codex exec` runs as the server process — and in
+  Docker, codex's own sandbox is disabled (`CODEX_SANDBOX=danger-full-access`) because the
+  container is the isolation boundary. A determined, novel injection (including one embedded in
+  an uploaded document, which the guard doesn't see) could still make the agent read outside its
+  working directory. For self-hosting among trusted tenants this is acceptable; the real fix for
+  adversarial tenants is per-tenant OS-level sandboxing — the hosted edition's answer and a
+  roadmap item here. Do not host adversarial tenants on a bare install.
 
 ## Where the paid cloud edition attaches (and the OSS core stays clean)
 

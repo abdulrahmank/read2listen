@@ -5,6 +5,7 @@ import { createApp } from '../src/app.js';
 import { hashKey } from '../src/auth.js';
 import { DocumentService } from '../src/services/DocumentService.js';
 import { ChatService } from '../src/services/ChatService.js';
+import { IntentGuard } from '../src/services/intentGuard.js';
 import { InMemoryTenantRepo, InMemoryDocumentRepo, InMemoryChatRepo } from './fakes/repos.js';
 import { FakeExecutor } from './fakes/FakeExecutor.js';
 
@@ -40,7 +41,10 @@ export async function createTestContext() {
   const executor = new FakeExecutor();
 
   const documentService = new DocumentService({ documentRepo });
-  const chatService = new ChatService({ chatRepo, documentRepo, executor });
+  // Heuristic-only in tests: deterministic, no model calls muddying the fake
+  // executor's recorded prompts. The model pass is unit-tested separately.
+  const intentGuard = new IntentGuard({ executor, mode: 'heuristic' });
+  const chatService = new ChatService({ chatRepo, documentRepo, executor, intentGuard });
 
   const { app, finish } = createApp({ tenantRepo, documentService, chatService });
   finish();

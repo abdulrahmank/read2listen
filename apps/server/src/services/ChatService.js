@@ -17,10 +17,12 @@ import { buildChatPrompt } from '../chatPrompt.js';
  * reasoning layer is pluggable; Codex exec is just the default.
  */
 export class ChatService {
-  constructor({ chatRepo, documentRepo, executor }) {
+  constructor({ chatRepo, documentRepo, executor, intentGuard }) {
     this.chatRepo = chatRepo;
     this.documentRepo = documentRepo;
     this.executor = executor;
+    // Optional: screens messages before the agent runs. Absent = allow all.
+    this.intentGuard = intentGuard;
   }
 
   async create(tenant, { title, documentIds = [] }) {
@@ -77,6 +79,18 @@ export class ChatService {
 
     // cwd is the tenancy boundary: the agent sees this tenant's files only.
     const cwd = await ensureTenantRoot(tenant.id);
+
+    // Screen intent before the agent runs. Blocked messages never reach the
+    // executor and are not persisted to history.
+    if (this.intentGuard) {
+      const verdict = await this.intentGuard.assess(text, { cwd });
+      if (!verdict.allow) {
+        logger.warn('Chat message blocked by intent guard', {
+          tenantId: tenant.id, chatId, stage: verdict.stage, reason: verdict.reason
+        });
+        throw new HttpError(422, `Message blocked: ${verdict.reason}`);
+      }
+    }
 
     // Full history lives in a file the agent can read on demand; the prompt
     // carries only the path and the last few turns, so it stays small no

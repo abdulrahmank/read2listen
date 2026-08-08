@@ -36,6 +36,20 @@ describe('CodexExecutor harness', () => {
     expect(new CodexExecutor().sandboxMode).toBe('read-only');
   });
 
+  test('a per-call sandbox override is accepted (used by the intent guard)', async () => {
+    // PATH emptied so codex never resolves — we only need execute() to accept
+    // the option and settle, not to actually run codex.
+    const originalPath = process.env.PATH;
+    process.env.PATH = '/nonexistent';
+    try {
+      const executor = new CodexExecutor({ timeoutMs: 5000, sandboxMode: 'danger-full-access' });
+      await expect(executor.execute('hi', { cwd: os.tmpdir(), sandboxMode: 'read-only' }))
+        .rejects.toMatchObject({ error: expect.stringContaining('Failed to start the Codex CLI') });
+    } finally {
+      process.env.PATH = originalPath;
+    }
+  });
+
   test('timeout configuration prefers explicit config over env', () => {
     process.env.CODEX_TIMEOUT_MS = '9999';
     try {

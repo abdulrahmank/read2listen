@@ -24,10 +24,14 @@ export class CodexExecutor {
     this.sandboxMode = config.sandboxMode || process.env.CODEX_SANDBOX || 'read-only';
   }
 
-  async execute(prompt, { cwd, onProgress } = {}) {
+  async execute(prompt, { cwd, onProgress, sandboxMode } = {}) {
     if (!cwd) {
       throw new Error('CodexExecutor.execute requires a cwd (the tenant directory)');
     }
+
+    // Per-call override (the intent guard forces read-only for its
+    // classification pass); falls back to the instance default.
+    const sandbox = sandboxMode || this.sandboxMode;
 
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
@@ -39,7 +43,7 @@ export class CodexExecutor {
 
       // --skip-git-repo-check: tenant dirs are plain data directories, not
       // git repos, and codex exec refuses to run outside one without it.
-      const child = spawn('codex', ['exec', '--skip-git-repo-check', '--sandbox', this.sandboxMode, prompt], {
+      const child = spawn('codex', ['exec', '--skip-git-repo-check', '--sandbox', sandbox, prompt], {
         env: process.env,
         cwd,
         // stdin is closed on purpose: if codex ever stops to prompt for
