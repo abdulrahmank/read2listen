@@ -1,0 +1,157 @@
+import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import path from 'path';
+import request from 'supertest';
+import { createTestContext, cleanupTestContext, uploadDocument, KEYS } from './helpers.js';
+
+describe('Chat sessions', () => {
+  let ctx;
+
+  beforeEach(async () => {
+    ctx = await createTestContext();
+  });
+
+  afterEach(async () => {
+    await cleanupTestContext(ctx);
+  });
+
+  const createChat = async (key, body = {}) =>
+    request(ctx.app).post('/api/chats').set('X-API-Key', key).send(body);
+
+  test('creates a chat with attached documents and a derived title', async () => {
+    const doc = (await uploadDocument(request, ctx.app, KEYS.acmeAdmin)).body.document;
+
+    const res = await createChat(KEYS.acmeMember, { documentIds: [doc._id] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.chat.title).toBe('Employee Handbook');
+    expect(res.body.chat.documentIds).toEqual([doc._id]);
+    expect(res.body.chat.messages).toEqual([]);
+  });
+
+  test('rejects chats referencing documents from another tenant', async () => {
+    const doc = (await uploadDocument(request, ctx.app, KEYS.acmeAdmin)).body.document;
+
+    const res = await createChat(KEYS.globexAdmin, { documentIds: [doc._id] });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('not found in this tenant');
+  });
+
+  test('first message runs the executor in the tenant dir with empty history', async () => {
+    const doc = (await uploadDocument(request, ctx.app, KEYS.acmeAdmin)).body.document;
+    const chat = (await createChat(KEYS.acmeMember, { documentIds: [doc._id] })).body.chat;
+
+    const res = await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ content: 'What is the vacation policy?' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.reply).toBe('This is the assistant reply.');
+
+    const call = ctx.executor.lastCall;
+    // cwd is the tenant's isolated directory
+    expect(call.cwd).toBe(path.join(ctx.dataDir, 'tenants', ctx.tenants.acme._id));
+    // prompt carries the assistant framing, the document list, and empty history
+    expect(call.prompt).toContain('You are a chat assistant for "acme"');
+    expect(call.prompt).toContain('handbook.md — Employee Handbook (version 1.0, 2026-01-15)');
+    expect(call.prompt).toContain('empty array means this is a new chat');
+    expect(call.prompt).toContain('\n[]\n');
+    expect(call.prompt).toContain('What is the vacation policy?');
+  });
+
+  test('continuation passes prior history as JSON and persists all turns', async () => {
+    const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
+
+    await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ content: 'First question' });
+
+    await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ content: 'Second question' });
+
+    const historyJson = JSON.stringify([
+      { role: 'user', content: 'First question' },
+      { role: 'assistant', content: 'This is the assistant reply.' }
+    ]);
+    expect(ctx.executor.lastCall.prompt).toContain(historyJson);
+
+    const fetched = await request(ctx.app)
+      .get(`/api/chats/${chat._id}`)
+      .set('X-API-Key', KEYS.acmeMember);
+    const roles = fetched.body.chat.messages.map((m) => m.role);
+    expect(roles).toEqual(['user', 'assistant', 'user', 'assistant']);
+    expect(fetched.body.chat.messages.every((m) => m.timestamp)).toBe(true);
+  });
+
+  test('documents can be added to an existing chat', async () => {
+    const doc1 = (await uploadDocument(request, ctx.app, KEYS.acmeAdmin)).body.document;
+    const doc2 = (await uploadDocument(request, ctx.app, KEYS.acmeAdmin, {
+      filename: 'benefits.md',
+      name: 'Benefits Guide',
+      content: 'benefits'
+    })).body.document;
+
+    const chat = (await createChat(KEYS.acmeMember, { documentIds: [doc1._id] })).body.chat;
+
+    const res = await request(ctx.app)
+      .post(`/api/chats/${chat._id}/documents`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ documentIds: [doc2._id, doc1._id] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.chat.documentIds.sort()).toEqual([doc1._id, doc2._id].sort());
+
+    // Next turn's prompt lists both documents
+    await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ content: 'Compare them' });
+    expect(ctx.executor.lastCall.prompt).toContain('handbook.md');
+    expect(ctx.executor.lastCall.prompt).toContain('benefits.md');
+  });
+
+  test('empty messages are rejected without calling the executor', async () => {
+    const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
+
+    const res = await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ content: '   ' });
+
+    expect(res.status).toBe(400);
+    expect(ctx.executor.calls).toHaveLength(0);
+  });
+
+  test('chats are tenant-isolated', async () => {
+    const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
+
+    const get = await request(ctx.app)
+      .get(`/api/chats/${chat._id}`)
+      .set('X-API-Key', KEYS.globexAdmin);
+    expect(get.status).toBe(404);
+
+    const list = await request(ctx.app).get('/api/chats').set('X-API-Key', KEYS.globexAdmin);
+    expect(list.body.chats).toHaveLength(0);
+
+    const del = await request(ctx.app)
+      .delete(`/api/chats/${chat._id}`)
+      .set('X-API-Key', KEYS.globexAdmin);
+    expect(del.status).toBe(404);
+  });
+
+  test('chat list returns summaries without message bodies', async () => {
+    const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
+    await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ content: 'Hello' });
+
+    const list = await request(ctx.app).get('/api/chats').set('X-API-Key', KEYS.acmeMember);
+    expect(list.body.chats).toHaveLength(1);
+    expect(list.body.chats[0].messages).toBeUndefined();
+    expect(list.body.chats[0].title).toBe('New chat');
+  });
+});

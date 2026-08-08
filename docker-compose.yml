@@ -1,0 +1,30 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      MONGODB_URI: mongodb://mongo:27017/chatify
+      DATA_DIR: /data
+      DEFAULT_ADMIN_KEY: ${DEFAULT_ADMIN_KEY:-}
+      DEFAULT_MEMBER_KEY: ${DEFAULT_MEMBER_KEY:-}
+    volumes:
+      - chatify-data:/data
+    depends_on:
+      mongo:
+        condition: service_healthy
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - chatify-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  chatify-data:
+  chatify-mongo:
