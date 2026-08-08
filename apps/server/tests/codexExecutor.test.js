@@ -25,6 +25,17 @@ describe('CodexExecutor harness', () => {
     }
   });
 
+  test('sandbox mode prefers explicit config over env, defaulting to read-only', () => {
+    process.env.CODEX_SANDBOX = 'danger-full-access';
+    try {
+      expect(new CodexExecutor({ sandboxMode: 'workspace-write' }).sandboxMode).toBe('workspace-write');
+      expect(new CodexExecutor().sandboxMode).toBe('danger-full-access');
+    } finally {
+      delete process.env.CODEX_SANDBOX;
+    }
+    expect(new CodexExecutor().sandboxMode).toBe('read-only');
+  });
+
   test('timeout configuration prefers explicit config over env', () => {
     process.env.CODEX_TIMEOUT_MS = '9999';
     try {

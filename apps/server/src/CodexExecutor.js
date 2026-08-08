@@ -18,6 +18,10 @@ export class CodexExecutor {
     this.timeoutMs = config.timeoutMs
       || parseInt(process.env.CODEX_TIMEOUT_MS, 10)
       || DEFAULT_TIMEOUT_MS;
+    // codex's own sandbox (bubblewrap/seatbelt). Inside Docker the container
+    // is the isolation boundary and bubblewrap cannot create namespaces under
+    // the default seccomp profile — the image sets CODEX_SANDBOX=danger-full-access.
+    this.sandboxMode = config.sandboxMode || process.env.CODEX_SANDBOX || 'read-only';
   }
 
   async execute(prompt, { cwd, onProgress } = {}) {
@@ -35,7 +39,7 @@ export class CodexExecutor {
 
       // --skip-git-repo-check: tenant dirs are plain data directories, not
       // git repos, and codex exec refuses to run outside one without it.
-      const child = spawn('codex', ['exec', '--skip-git-repo-check', prompt], {
+      const child = spawn('codex', ['exec', '--skip-git-repo-check', '--sandbox', this.sandboxMode, prompt], {
         env: process.env,
         cwd,
         // stdin is closed on purpose: if codex ever stops to prompt for
