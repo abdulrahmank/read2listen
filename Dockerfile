@@ -14,7 +14,13 @@ RUN npm run build --workspace apps/web
 FROM node:20-slim
 WORKDIR /app
 
-RUN npm install -g @openai/codex
+# ca-certificates: node:20-slim ships without a system trust store (Node has
+# its own bundled roots), but codex is a Rust binary that reads /etc/ssl/certs
+# — without this it rejects every TLS peer with UnknownIssuer.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/* \
+  && npm install -g @openai/codex
 
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/

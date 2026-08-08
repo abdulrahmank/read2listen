@@ -7,6 +7,7 @@ import logger from './logger.js';
 import { connectDb } from './db.js';
 import { createApp } from './app.js';
 import { CodexExecutor, logCodexVersion } from './CodexExecutor.js';
+import { MockExecutor } from './MockExecutor.js';
 import { TenantRepo } from './repos/TenantRepo.js';
 import { DocumentRepo } from './repos/DocumentRepo.js';
 import { ChatRepo } from './repos/ChatRepo.js';
@@ -29,7 +30,9 @@ const chatRepo = new ChatRepo(db);
 
 const documentService = new DocumentService({ documentRepo });
 // The reasoning layer is pluggable: swap the executor here to change backends.
-const chatService = new ChatService({ chatRepo, documentRepo, executor: new CodexExecutor() });
+// MOCK_EXECUTOR=true runs a local demo backend that needs no OpenAI account.
+const executor = process.env.MOCK_EXECUTOR === 'true' ? new MockExecutor() : new CodexExecutor();
+const chatService = new ChatService({ chatRepo, documentRepo, executor });
 
 await ensureDefaultTenant(tenantRepo);
 

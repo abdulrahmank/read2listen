@@ -1,0 +1,50 @@
+# mvpfy local preview — brings up the whole product with one command:
+#   docker compose -f docker-compose.mvpfy.yml up -d
+# Main app (Vue SPA + Express API, one container): http://localhost:4103
+# By default MOCK_EXECUTOR=true, so no OpenAI key is needed — chat replies
+# come from a built-in demo backend. Set OPENAI_API_KEY and MOCK_EXECUTOR=false
+# in a .env file to enable real AI answers.
+
+services:
+  app:
+    build: .
+    ports:
+      - "4103:3000"
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/chatify
+      DATA_DIR: /data
+      # Demo mode: no OpenAI account needed. Flip to false + set OPENAI_API_KEY for real AI.
+      MOCK_EXECUTOR: ${MOCK_EXECUTOR:-true}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Pinned local-only demo keys (created on first boot against an empty DB;
+      # the app stores only their hashes). Safe to share with the PM, never real secrets.
+      DEFAULT_ADMIN_KEY: ${DEFAULT_ADMIN_KEY:-cfy_admin_demo_local_only}
+      DEFAULT_MEMBER_KEY: ${DEFAULT_MEMBER_KEY:-cfy_member_demo_local_only}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    volumes:
+      - chatify-mvpfy-data:/data
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    volumes:
+      - chatify-mvpfy-mongo:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.runCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  # Named volumes so uploaded documents and chat history survive restarts.
+  chatify-mvpfy-data:
+  chatify-mvpfy-mongo:
