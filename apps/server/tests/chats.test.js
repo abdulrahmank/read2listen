@@ -1,4 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach } from '@jest/globals';
+import fs from 'fs/promises';
 import path from 'path';
 import request from 'supertest';
 import { createTestContext, cleanupTestContext, uploadDocument, KEYS } from './helpers.js';
@@ -54,8 +55,7 @@ describe('Chat sessions', () => {
     // prompt carries the assistant framing, the document list, and empty history
     expect(call.prompt).toContain('You are a chat assistant for "acme"');
     expect(call.prompt).toContain('handbook.md — Employee Handbook (version 1.0, 2026-01-15)');
-    expect(call.prompt).toContain('empty array means this is a new chat');
-    expect(call.prompt).toContain('\n[]\n');
+    expect(call.prompt).toContain('This is a new chat');
     expect(call.prompt).toContain('What is the vacation policy?');
   });
 
@@ -72,11 +72,20 @@ describe('Chat sessions', () => {
       .set('X-API-Key', KEYS.acmeMember)
       .send({ content: 'Second question' });
 
+    // Recent turns ride along inline; the full history lives in a file the
+    // agent can read from its cwd.
     const historyJson = JSON.stringify([
       { role: 'user', content: 'First question' },
       { role: 'assistant', content: 'This is the assistant reply.' }
     ]);
     expect(ctx.executor.lastCall.prompt).toContain(historyJson);
+    expect(ctx.executor.lastCall.prompt).toContain(`.chats/${chat._id}.json`);
+
+    const historyFile = path.join(
+      ctx.dataDir, 'tenants', ctx.tenants.acme._id, '.chats', `${chat._id}.json`);
+    const stored = JSON.parse(await fs.readFile(historyFile, 'utf-8'));
+    expect(stored.map((m) => m.role)).toEqual(['user', 'assistant']);
+    expect(stored.every((m) => m.timestamp)).toBe(true);
 
     const fetched = await request(ctx.app)
       .get(`/api/chats/${chat._id}`)
@@ -212,6 +221,23 @@ describe('Chat sessions', () => {
       .delete(`/api/chats/${chat._id}`)
       .set('X-API-Key', KEYS.globexAdmin);
     expect(del.status).toBe(404);
+  });
+
+  test('deleting a chat removes its history file', async () => {
+    const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
+    await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ content: 'Hello' });
+
+    const historyFile = path.join(
+      ctx.dataDir, 'tenants', ctx.tenants.acme._id, '.chats', `${chat._id}.json`);
+    await expect(fs.access(historyFile)).resolves.toBeUndefined();
+
+    await request(ctx.app)
+      .delete(`/api/chats/${chat._id}`)
+      .set('X-API-Key', KEYS.acmeMember);
+    await expect(fs.access(historyFile)).rejects.toThrow();
   });
 
   test('chat list returns summaries without message bodies', async () => {

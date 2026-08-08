@@ -19,7 +19,7 @@ export class MockExecutor {
 
     let files = [];
     try {
-      files = (await fs.readdir(cwd)).filter((f) => f !== 'AGENTS.md');
+      files = (await fs.readdir(cwd)).filter((f) => f !== 'AGENTS.md' && !f.startsWith('.'));
     } catch {
       // Tenant directory may not exist yet on a brand-new chat.
     }

@@ -1,19 +1,29 @@
 /**
  * Builds the prompt for one chat turn. The agent runs inside the tenant's
- * document directory; continuity comes from the chat's stored history,
- * passed verbatim as JSON (an empty array for a new chat).
- * Pure function: ChatService owns loading/persisting the history.
+ * document directory; continuity comes from the chat's stored history, which
+ * is written to a file in that directory (.chats/<chatId>.json) so the
+ * prompt stays small no matter how long the conversation gets: only the most
+ * recent turns ride along inline, and the agent reads the file when earlier
+ * context matters. Pure function: ChatService owns loading/persisting the
+ * history and writing the file.
  */
-export function buildChatPrompt({ tenantName, documents, history, userMessage }) {
+
+// Enough inline turns that ordinary follow-ups need no file read.
+export const RECENT_TURNS = 6;
+
+export function buildChatPrompt({ tenantName, documents, history, historyPath, userMessage }) {
   const docList = documents.length === 0
     ? '(the library is empty — answer from general knowledge and say no documents have been uploaded yet)'
     : documents
         .map((d) => `- ${d.filename} — ${d.name} (version ${d.version}, ${d.date}): ${d.use}`)
         .join('\n');
 
-  const historyJson = JSON.stringify(
-    history.map(({ role, content }) => ({ role, content }))
-  );
+  const turns = history.map(({ role, content }) => ({ role, content }));
+  const memory = turns.length === 0
+    ? 'This is a new chat — there is no prior conversation.'
+    : `The full conversation so far (${turns.length} messages) is stored at "${historyPath}" ` +
+      `as a JSON array — read it if earlier context matters. The most recent turns:\n` +
+      JSON.stringify(turns.slice(-RECENT_TURNS));
 
   return `You are a chat assistant for "${tenantName}".
 
@@ -22,8 +32,7 @@ AGENTS.md describes what every file in this directory is for. This conversation
 concerns the following documents:
 ${docList}
 
-Conversation so far, as JSON (empty array means this is a new chat):
-${historyJson}
+${memory}
 
 User message:
 """

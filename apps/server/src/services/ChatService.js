@@ -1,7 +1,11 @@
 import logger from '../logger.js';
 import { HttpError } from '../errorHandler.js';
 import { assertWithinQuota } from './quotas.js';
-import { ensureTenantRoot } from '../tenantDir.js';
+import {
+  ensureTenantRoot,
+  writeChatHistory,
+  removeChatHistory
+} from '../tenantDir.js';
 import { buildChatPrompt } from '../chatPrompt.js';
 
 /**
@@ -44,6 +48,7 @@ export class ChatService {
     if (!removed) {
       throw new HttpError(404, `Chat ${chatId} not found`);
     }
+    await removeChatHistory(tenantId, chatId);
   }
 
   /**
@@ -70,15 +75,25 @@ export class ChatService {
     const attached = await this.documentRepo.findByIds(tenant.id, chat.documentIds);
     const documents = attached.length > 0 ? attached : await this.documentRepo.list(tenant.id);
 
+    // cwd is the tenancy boundary: the agent sees this tenant's files only.
+    const cwd = await ensureTenantRoot(tenant.id);
+
+    // Full history lives in a file the agent can read on demand; the prompt
+    // carries only the path and the last few turns, so it stays small no
+    // matter how long the conversation gets.
+    const historyPath = await writeChatHistory(
+      tenant.id,
+      chatId,
+      chat.messages.map(({ role, content, timestamp }) => ({ role, content, timestamp }))
+    );
+
     const prompt = buildChatPrompt({
       tenantName: tenant.name,
       documents,
       history: chat.messages,
+      historyPath,
       userMessage: text
     });
-
-    // cwd is the tenancy boundary: the agent sees this tenant's files only.
-    const cwd = await ensureTenantRoot(tenant.id);
     const result = await this.executor.execute(prompt, { cwd, onProgress });
     const reply = result.output.trim();
 
