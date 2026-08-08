@@ -103,7 +103,7 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
 | `DEFAULT_ADMIN_KEY` | no | generated | Admin key for the default tenant (first boot only) |
 | `DEFAULT_MEMBER_KEY` | no | generated | Member key for the default tenant (first boot only) |
 | `MAX_UPLOAD_MB` | no | `25` | Upload size limit |
-| `CODEX_TIMEOUT_MS` | no | `120000` | Kill a codex run after this long; the chat request fails cleanly instead of hanging |
+| `CODEX_TIMEOUT_MS` | no | `600000` | Kill a codex run after this long; the chat request fails cleanly instead of hanging |
 | `CODEX_SANDBOX` | no | `read-only` | codex's own sandbox mode. The Docker image sets `danger-full-access`: the container is the isolation boundary, and bubblewrap can't run under Docker's default seccomp profile |
 | `MOCK_EXECUTOR` | no | `false` | `true` = built-in demo replies, no OpenAI account needed |
 | `CORS_ORIGIN` | no | `*` | CORS origin for the API |

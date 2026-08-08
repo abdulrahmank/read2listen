@@ -1,7 +1,7 @@
 import { spawn, execFile } from 'child_process';
 import logger from './logger.js';
 
-const DEFAULT_TIMEOUT_MS = 120000;
+const DEFAULT_TIMEOUT_MS = 600000;
 
 /**
  * Default reasoning backend: shells out to Codex exec (`codex exec`).

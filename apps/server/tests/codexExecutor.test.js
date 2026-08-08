@@ -44,6 +44,6 @@ describe('CodexExecutor harness', () => {
     } finally {
       delete process.env.CODEX_TIMEOUT_MS;
     }
-    expect(new CodexExecutor().timeoutMs).toBe(120000);
+    expect(new CodexExecutor().timeoutMs).toBe(600000);
   });
 });
