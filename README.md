@@ -82,12 +82,13 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
 | GET | `/health` | Liveness (no key) |
 | GET | `/api/tenant` | Tenant + role for the presented key |
 | GET | `/api/documents` | List the tenant's documents |
-| POST | `/api/documents` **A** | Upload (multipart): `file`, `name`, `version`, `date`, `use` |
+| POST | `/api/documents` **A** | Upload (multipart): `file` + optional `name`/`version`/`date`/`use` (defaulted, editable later) |
+| PATCH | `/api/documents/:id` **A** | Edit metadata: any of `{ name, version, date, use }` (AGENTS.md refresh) |
 | DELETE | `/api/documents/:id` **A** | Delete a document (file + metadata + AGENTS.md refresh) |
 | GET | `/api/chats` | List chat summaries |
 | POST | `/api/chats` | Create a chat: `{ title?, documentIds? }` |
 | GET | `/api/chats/:id` | Chat with full message history |
-| POST | `/api/chats/:id/messages` | Send a turn: `{ content }` → `{ reply, messages }` |
+| POST | `/api/chats/:id/messages` | Send a turn: `{ content }` → `{ reply, messages }`; with `Accept: text/event-stream`, streams SSE `chunk` events then `done` |
 | POST | `/api/chats/:id/documents` | Attach more documents: `{ documentIds }` |
 | DELETE | `/api/chats/:id` | Delete a chat |
 
@@ -103,6 +104,8 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
 | `DEFAULT_MEMBER_KEY` | no | generated | Member key for the default tenant (first boot only) |
 | `MAX_UPLOAD_MB` | no | `25` | Upload size limit |
 | `CODEX_TIMEOUT_MS` | no | `120000` | Kill a codex run after this long; the chat request fails cleanly instead of hanging |
+| `CODEX_SANDBOX` | no | `read-only` | codex's own sandbox mode. The Docker image sets `danger-full-access`: the container is the isolation boundary, and bubblewrap can't run under Docker's default seccomp profile |
+| `MOCK_EXECUTOR` | no | `false` | `true` = built-in demo replies, no OpenAI account needed |
 | `CORS_ORIGIN` | no | `*` | CORS origin for the API |
 | `LOG_LEVEL` | no | `info` | `error` \| `warn` \| `info` \| `debug` |
 
@@ -115,9 +118,11 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
   (an upload by that name is renamed, never allowed to impersonate the generated file).
 - **Known limitation:** directory isolation controls what the agent is *pointed at*, but
   `codex exec` runs as the server process. A hostile prompt could ask the agent to read outside
-  its working directory. For self-hosting among trusted tenants this is usually acceptable;
-  per-tenant OS-level sandboxing (containers) is the hosted edition's answer and a roadmap item
-  here. Do not host adversarial tenants on a bare install.
+  its working directory — and in Docker, codex's own sandbox is disabled
+  (`CODEX_SANDBOX=danger-full-access`) because the container is the isolation boundary. For
+  self-hosting among trusted tenants this is usually acceptable; per-tenant OS-level sandboxing
+  is the hosted edition's answer and a roadmap item here. Do not host adversarial tenants on a
+  bare install.
 
 ## Where the paid cloud edition attaches (and the OSS core stays clean)
 

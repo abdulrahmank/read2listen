@@ -20,7 +20,7 @@ export function createApp({ tenantRepo, documentService, chatService }) {
   app.use(helmet());
   app.use(cors({
     origin: process.env.CORS_ORIGIN || '*',
-    methods: ['GET', 'POST', 'DELETE'],
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'X-API-Key']
   }));
   app.use(express.json({ limit: '1mb' }));
