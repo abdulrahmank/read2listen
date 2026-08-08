@@ -31,7 +31,8 @@ seams, never by forking logic.
 ## Chat pipeline (deliberately no LangGraph, no approval flow)
 
 resolve tenant → load chat history from MongoDB (empty array if new) → build
-"You are a chat assistant…" prompt (history JSON + this chat's document list)
+"You are a chat assistant…" prompt (history JSON + this chat's document list;
+a chat with no documents attached grounds on the tenant's whole library)
 → `codex exec` in the tenant dir → append user+assistant messages → persist →
 respond. Chat is read-only Q&A over documents; there is nothing to approve.
 

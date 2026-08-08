@@ -6,7 +6,7 @@
  */
 export function buildChatPrompt({ tenantName, documents, history, userMessage }) {
   const docList = documents.length === 0
-    ? '(none attached — answer from general knowledge and say no documents are attached)'
+    ? '(the library is empty — answer from general knowledge and say no documents have been uploaded yet)'
     : documents
         .map((d) => `- ${d.filename} — ${d.name} (version ${d.version}, ${d.date}): ${d.use}`)
         .join('\n');

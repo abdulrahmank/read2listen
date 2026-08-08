@@ -86,6 +86,20 @@ describe('Chat sessions', () => {
     expect(fetched.body.chat.messages.every((m) => m.timestamp)).toBe(true);
   });
 
+  test('a chat with no attached documents grounds on the whole library', async () => {
+    await uploadDocument(request, ctx.app, KEYS.acmeAdmin);
+    const chat = (await createChat(KEYS.acmeMember, {})).body.chat;
+    expect(chat.documentIds).toEqual([]);
+
+    await request(ctx.app)
+      .post(`/api/chats/${chat._id}/messages`)
+      .set('X-API-Key', KEYS.acmeMember)
+      .send({ content: 'What does the handbook say?' });
+
+    expect(ctx.executor.lastCall.prompt).toContain('handbook.md — Employee Handbook');
+    expect(ctx.executor.lastCall.prompt).not.toContain('library is empty');
+  });
+
   test('documents can be added to an existing chat', async () => {
     const doc1 = (await uploadDocument(request, ctx.app, KEYS.acmeAdmin)).body.document;
     const doc2 = (await uploadDocument(request, ctx.app, KEYS.acmeAdmin, {

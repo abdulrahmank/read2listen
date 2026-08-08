@@ -65,7 +65,10 @@ export class ChatService {
     assertWithinQuota(tenant, 'chat.message');
 
     const chat = await this.get(tenant.id, chatId);
-    const documents = await this.documentRepo.findByIds(tenant.id, chat.documentIds);
+    // Attached documents narrow the conversation's scope; a chat with none
+    // attached grounds on the tenant's whole uploaded library.
+    const attached = await this.documentRepo.findByIds(tenant.id, chat.documentIds);
+    const documents = attached.length > 0 ? attached : await this.documentRepo.list(tenant.id);
 
     const prompt = buildChatPrompt({
       tenantName: tenant.name,
