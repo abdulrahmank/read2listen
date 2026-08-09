@@ -48,6 +48,32 @@ continue where they left off.
   `execute(prompt, { cwd })`; Codex exec is the default, injected once in
   `apps/server/src/index.js`.
 
+## Data sources
+
+Today a tenant's knowledge is its **uploaded documents** — files in
+`DATA_DIR/tenants/<tenantId>/`, described by the generated `AGENTS.md` and read by the agent at
+query time.
+
+The same retrieval model extends to live systems. Because the reasoning layer is the Codex
+agent, any source exposed as an **MCP server** can be attached per tenant: the agent calls the
+MCP tool *during a turn* and answers from fresh results — no sync job, no separate index,
+exactly the way it reads files today. `AGENTS.md` grows a "sources" section so the agent knows
+what each connection is for and when to use it.
+
+| Source | Status | Notes |
+| --- | --- | --- |
+| Uploaded files | **Available** | PDF (text), Markdown, CSV, text; read in the tenant dir |
+| MCP connectors | **Roadmap** | Databases (Postgres/MySQL), warehouses (Databricks), SaaS systems — any MCP server |
+
+MCP connections are provisioned through **[Nango](https://www.nango.dev)** (hosted): it handles
+per-tenant OAuth and credential storage, so third-party secrets never live in this repo or the
+tenant filesystem. The app scopes each tenant to its own connections and requests **read-only**
+access (chat is Q&A — there is nothing to write). This attaches at the executor seam
+(`CodexExecutor`): the agent's MCP configuration is generated per tenant, keeping the same
+tenant-isolation boundary as documents. Adding live data sources widens that boundary from "read
+another tenant's files" to "read another tenant's systems", so per-tenant scoping and read-only
+credentials are load-bearing here — see the security model below.
+
 ## Quick start (Docker)
 
 ```bash
