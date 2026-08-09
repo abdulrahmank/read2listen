@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.svg" alt="chatify-by-f1" width="88" height="99" />
+</p>
+
 # chatify-by-f1
 
 **Chat with your documents.** Upload documents with a declared purpose, then converse with an
