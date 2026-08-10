@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch, nextTick } from 'vue';
+import { renderMarkdown } from '../markdown.js';
 
 const props = defineProps({
   messages: { type: Array, required: true },
@@ -32,11 +33,12 @@ const formatTime = (iso) =>
       class="bubble"
       :class="message.role"
     >
-      {{ message.content }}
+      <div v-if="message.role === 'assistant'" class="md" v-html="renderMarkdown(message.content)"></div>
+      <span v-else class="text">{{ message.content }}</span>
       <span class="meta">{{ formatTime(message.timestamp) }}</span>
     </div>
     <div v-if="sending && streamingReply" class="bubble assistant">
-      {{ streamingReply }}
+      <div class="md" v-html="renderMarkdown(streamingReply)"></div>
     </div>
     <div v-else-if="sending" class="typing">Assistant is reading the documents…</div>
   </div>
