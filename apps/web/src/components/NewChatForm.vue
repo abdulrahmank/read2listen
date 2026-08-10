@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useDocuments } from '../composables/useDocuments.js';
 
 const emit = defineEmits(['create', 'cancel']);
@@ -8,7 +8,19 @@ const { documents, load } = useDocuments();
 const title = ref('');
 const selected = ref([]);
 
-onMounted(load);
+// New chats cover the whole library by default; unchecking narrows scope.
+onMounted(async () => {
+  await load();
+  selected.value = documents.value.map((d) => d._id);
+});
+
+const allSelected = computed(
+  () => documents.value.length > 0 && selected.value.length === documents.value.length
+);
+
+function toggleAll() {
+  selected.value = allSelected.value ? [] : documents.value.map((d) => d._id);
+}
 
 function submit() {
   emit('create', { title: title.value, documentIds: selected.value });
@@ -20,7 +32,21 @@ function submit() {
     <label>Title (optional)</label>
     <input v-model="title" placeholder="e.g. Handbook questions" />
 
-    <label>Documents for this chat</label>
+    <div class="doc-picker-head">
+      <label>Documents for this chat</label>
+      <button
+        v-if="documents.length > 0"
+        type="button"
+        class="link-btn"
+        @click="toggleAll"
+      >
+        {{ allSelected ? 'Clear all' : 'Select all' }}
+      </button>
+    </div>
+    <p class="doc-picker-hint">
+      All documents are included by default — uncheck any to narrow this chat.
+    </p>
+
     <div v-if="documents.length === 0" class="empty-state">
       No documents in the library yet.
     </div>

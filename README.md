@@ -44,6 +44,10 @@ continue where they left off.
 - **Conversation continuity is plain JSON.** Each chat's messages are stored in MongoDB and
   passed to the agent verbatim on every turn (an empty array for a new chat). Documents can be
   added to a chat at any point as the conversation grows.
+- **New chats cover the whole library by default.** Every document is attached when a chat is
+  created; unchecking narrows the scope. When attached documents disagree on something relevant,
+  the agent surfaces the conflict — naming the documents and versions — instead of silently
+  picking one.
 - **The reasoning layer is pluggable.** `ChatService` takes any executor with
   `execute(prompt, { cwd })`; Codex exec is the default, injected once in
   `apps/server/src/index.js`.

@@ -57,6 +57,9 @@ describe('Chat sessions', () => {
     expect(call.prompt).toContain('handbook.md — Employee Handbook (version 1.0, 2026-01-15)');
     expect(call.prompt).toContain('This is a new chat');
     expect(call.prompt).toContain('What is the vacation policy?');
+    // grounding guardrails: stay in-dir, and surface document conflicts
+    expect(call.prompt).toContain('Stay within this directory');
+    expect(call.prompt).toContain('do not silently pick one');
   });
 
   test('continuation passes prior history as JSON and persists all turns', async () => {
