@@ -278,13 +278,7 @@ tr:last-child td { border-bottom: none; }
 .new-chat-form { display: flex; flex-direction: column; gap: 8px; padding: 12px; }
 .new-chat-form .doc-option { display: flex; gap: 8px; align-items: center; font-size: 13px; }
 .new-chat-form .doc-option input { width: auto; }
-.doc-picker-head { display: flex; align-items: center; justify-content: space-between; }
-.doc-picker-hint { margin: 0 0 4px; font-size: 12px; color: var(--muted); }
-.link-btn {
-  border: none; background: none; padding: 0; width: auto;
-  color: var(--accent); font-size: 12px; cursor: pointer;
-}
-.link-btn:hover { text-decoration: underline; }
+.doc-picker-hint { margin: 4px 0; font-size: 13px; color: var(--muted); }
 
 .attach-panel { position: relative; }
 .attach-menu {
