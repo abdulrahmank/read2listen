@@ -17,6 +17,14 @@ continue where they left off.
 > paid cloud edition runs the same core with billing, quotas, and hard tenant sandboxing
 > attached at documented seams — never as a fork.
 
+## Demo
+
+<p align="center">
+  <video src="https://raw.githubusercontent.com/feature1-ai/chatify-by-f1/main/assets/chatify-demo.mp4" controls muted width="720"></video>
+</p>
+
+▶️ Upload a document, then chat with it — [watch the demo](assets/chatify-demo.mp4) if the player above doesn't load.
+
 ## How it works
 
 ```
