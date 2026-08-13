@@ -20,10 +20,11 @@ continue where they left off.
 ## Demo
 
 <p align="center">
-  <video src="https://raw.githubusercontent.com/feature1-ai/chatify-by-f1/main/assets/chatify-demo.mp4" controls muted width="720"></video>
+  <img src="assets/chatify-demo.gif" alt="chatify-by-f1 demo — upload a document, then chat with it" width="720" />
 </p>
 
-▶️ Upload a document, then chat with it — [watch the demo](assets/chatify-demo.mp4) if the player above doesn't load.
+Upload a document with its declared *use*, then chat and get a grounded answer.
+▶️ [Watch the full video with voiceover](assets/chatify-demo.mp4).
 
 ## How it works
 
