@@ -52,7 +52,7 @@ describe('Document library', () => {
 
   test('admin can edit metadata afterwards and AGENTS.md follows', async () => {
     const uploaded = await uploadDocument(request, ctx.app, KEYS.acmeAdmin);
-    const docId = uploaded.body.document._id;
+    const docId = uploaded.body.document.id;
 
     const res = await request(ctx.app)
       .patch(`/api/documents/${docId}`)
@@ -70,7 +70,7 @@ describe('Document library', () => {
 
   test('metadata edits reject empty values, member keys, and other tenants', async () => {
     const uploaded = await uploadDocument(request, ctx.app, KEYS.acmeAdmin);
-    const docId = uploaded.body.document._id;
+    const docId = uploaded.body.document.id;
 
     const empty = await request(ctx.app)
       .patch(`/api/documents/${docId}`)
@@ -129,7 +129,7 @@ describe('Document library', () => {
 
   test('deleting a document removes the file and updates AGENTS.md', async () => {
     const uploaded = await uploadDocument(request, ctx.app, KEYS.acmeAdmin);
-    const docId = uploaded.body.document._id;
+    const docId = uploaded.body.document.id;
 
     const res = await request(ctx.app)
       .delete(`/api/documents/${docId}`)
@@ -145,7 +145,7 @@ describe('Document library', () => {
 
   test('tenants cannot see or delete each other\'s documents', async () => {
     const uploaded = await uploadDocument(request, ctx.app, KEYS.acmeAdmin);
-    const docId = uploaded.body.document._id;
+    const docId = uploaded.body.document.id;
 
     const list = await request(ctx.app).get('/api/documents').set('X-API-Key', KEYS.globexAdmin);
     expect(list.body.documents).toHaveLength(0);

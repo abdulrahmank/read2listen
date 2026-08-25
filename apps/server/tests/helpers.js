@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs/promises';
 import { createApp } from '../src/app.js';
 import { hashKey } from '../src/auth.js';
+import { FileStore } from '../src/FileStore.js';
 import { DocumentService } from '../src/services/DocumentService.js';
 import { ChatService } from '../src/services/ChatService.js';
 import { IntentGuard } from '../src/services/intentGuard.js';
@@ -40,7 +41,9 @@ export async function createTestContext() {
   const chatRepo = new InMemoryChatRepo();
   const executor = new FakeExecutor();
 
-  const documentService = new DocumentService({ documentRepo });
+  // The real FileStore against the throwaway DATA_DIR: tests assert on files
+  // landing in (and vanishing from) the tenant directories.
+  const documentService = new DocumentService({ documentRepo, fileStore: new FileStore() });
   // Heuristic-only in tests: deterministic, no model calls muddying the fake
   // executor's recorded prompts. The model pass is unit-tested separately.
   const intentGuard = new IntentGuard({ executor, mode: 'heuristic' });

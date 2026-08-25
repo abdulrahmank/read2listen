@@ -1,4 +1,3 @@
-import fs from 'fs/promises';
 import path from 'path';
 import logger from '../logger.js';
 import { HttpError } from '../errorHandler.js';
@@ -10,15 +9,21 @@ import {
   AGENTS_FILENAME
 } from '../tenantDir.js';
 import { renderAgentsMd } from '../agentsMd.js';
+import { toDocumentDto } from '../models/document.model.js';
 
 /**
- * Owns the tenant's document library: file bytes on disk, metadata in the
- * repo, and the AGENTS.md that keeps Codex exec oriented. Every mutation
- * regenerates AGENTS.md so the directory is always self-describing.
+ * Owns the tenant's document library: file bytes in the injected FileStore,
+ * metadata in the repo, and the AGENTS.md that keeps Codex exec oriented.
+ * Every mutation regenerates AGENTS.md so the directory is always
+ * self-describing.
+ *
+ * Repos hand back stored docs; everything leaving this service is a wire DTO
+ * (models/document.model.js) — routes never see `_id` or `tenantId`.
  */
 export class DocumentService {
-  constructor({ documentRepo }) {
+  constructor({ documentRepo, fileStore }) {
     this.documentRepo = documentRepo;
+    this.fileStore = fileStore;
   }
 
   async create(tenant, meta = {}, file) {
@@ -47,7 +52,7 @@ export class DocumentService {
     await ensureTenantRoot(tenant.id);
     const filename = await this.uniqueFilename(tenant.id, sanitizeFilename(file.originalname));
 
-    await fs.writeFile(documentPath(tenant.id, filename), file.buffer);
+    await this.fileStore.write(documentPath(tenant.id, filename), file.buffer);
 
     const document = await this.documentRepo.create(tenant.id, {
       filename,
@@ -57,7 +62,7 @@ export class DocumentService {
 
     await this.regenerateAgentsMd(tenant);
     logger.info(`Document uploaded: ${filename}`, { tenantId: tenant.id });
-    return document;
+    return toDocumentDto(document);
   }
 
   /**
@@ -88,11 +93,12 @@ export class DocumentService {
     await this.regenerateAgentsMd(tenant);
 
     logger.info(`Document updated: ${existing.filename}`, { tenantId: tenant.id });
-    return document;
+    return toDocumentDto(document);
   }
 
   async list(tenantId) {
-    return this.documentRepo.list(tenantId);
+    const documents = await this.documentRepo.list(tenantId);
+    return documents.map(toDocumentDto);
   }
 
   async remove(tenant, documentId) {
@@ -102,11 +108,11 @@ export class DocumentService {
     }
 
     await this.documentRepo.remove(tenant.id, documentId);
-    await fs.rm(documentPath(tenant.id, document.filename), { force: true });
+    await this.fileStore.remove(documentPath(tenant.id, document.filename));
     await this.regenerateAgentsMd(tenant);
 
     logger.info(`Document removed: ${document.filename}`, { tenantId: tenant.id });
-    return document;
+    return toDocumentDto(document);
   }
 
   /**
@@ -127,6 +133,6 @@ export class DocumentService {
   async regenerateAgentsMd(tenant) {
     const documents = await this.documentRepo.list(tenant.id);
     const root = await ensureTenantRoot(tenant.id);
-    await fs.writeFile(path.join(root, AGENTS_FILENAME), renderAgentsMd(tenant.name, documents));
+    await this.fileStore.write(path.join(root, AGENTS_FILENAME), renderAgentsMd(tenant.name, documents));
   }
 }

@@ -27,13 +27,13 @@ function create(payload) {
     <div class="chat-list">
       <div
         v-for="chat in chats"
-        :key="chat._id"
+        :key="chat.id"
         class="chat-list-item"
-        :class="{ active: chat._id === activeChatId }"
-        @click="emit('select', chat._id)"
+        :class="{ active: chat.id === activeChatId }"
+        @click="emit('select', chat.id)"
       >
         <span class="title">{{ chat.title }}</span>
-        <button class="delete" title="Delete chat" @click.stop="emit('remove', chat._id)">✕</button>
+        <button class="delete" title="Delete chat" @click.stop="emit('remove', chat.id)">✕</button>
       </div>
       <div v-if="chats.length === 0 && !showNewChat" class="empty-state">
         No chats yet.

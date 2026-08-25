@@ -22,12 +22,12 @@ const activeChatId = computed(() => route.params.chatId || null);
 
 const attachedDocs = computed(() =>
   (chat.value?.documentIds || [])
-    .map((id) => documents.value.find((d) => d._id === id))
+    .map((id) => documents.value.find((d) => d.id === id))
     .filter(Boolean)
 );
 
 const attachableDocs = computed(() =>
-  documents.value.filter((d) => !(chat.value?.documentIds || []).includes(d._id))
+  documents.value.filter((d) => !(chat.value?.documentIds || []).includes(d.id))
 );
 
 onMounted(async () => {
@@ -42,7 +42,7 @@ watch(activeChatId, async (chatId) => {
 
 async function createChat(payload) {
   const created = await chatsStore.create(payload);
-  router.push(`/chats/${created._id}`);
+  router.push(`/chats/${created.id}`);
 }
 
 async function removeChat(chatId) {
@@ -76,15 +76,15 @@ async function onSend(content) {
     <section class="chat-main" v-if="chat">
       <header class="chat-header">
         <h2>{{ chat.title }}</h2>
-        <span v-for="doc in attachedDocs" :key="doc._id" class="doc-chip">
+        <span v-for="doc in attachedDocs" :key="doc.id" class="doc-chip">
           {{ doc.name }}
         </span>
         <div class="attach-panel" v-if="attachableDocs.length > 0">
           <button @click="showAttach = !showAttach">+ Add documents</button>
           <div v-if="showAttach" class="attach-menu panel">
-            <div v-for="doc in attachableDocs" :key="doc._id" class="doc-option">
-              <input type="checkbox" :id="`attach-${doc._id}`" :value="doc._id" v-model="attachSelection" />
-              <label :for="`attach-${doc._id}`">{{ doc.name }} (v{{ doc.version }})</label>
+            <div v-for="doc in attachableDocs" :key="doc.id" class="doc-option">
+              <input type="checkbox" :id="`attach-${doc.id}`" :value="doc.id" v-model="attachSelection" />
+              <label :for="`attach-${doc.id}`">{{ doc.name }} (v{{ doc.version }})</label>
             </div>
             <button class="primary" :disabled="attachSelection.length === 0" @click="attach">
               Attach

@@ -38,7 +38,7 @@ export function useChat() {
     });
 
     try {
-      const data = await stream(`/api/chats/${chat.value._id}/messages`, {
+      const data = await stream(`/api/chats/${chat.value.id}/messages`, {
         body: { content },
         onEvent: (event, payload) => {
           if (event === 'chunk') streamingReply.value += payload.text;
@@ -56,7 +56,7 @@ export function useChat() {
 
   async function addDocuments(documentIds) {
     if (!chat.value) return;
-    const data = await request(`/api/chats/${chat.value._id}/documents`, {
+    const data = await request(`/api/chats/${chat.value.id}/documents`, {
       method: 'POST',
       body: { documentIds }
     });

@@ -7,11 +7,15 @@ import {
   removeChatHistory
 } from '../tenantDir.js';
 import { buildChatPrompt } from '../chatPrompt.js';
+import { toChatDto } from '../models/chat.model.js';
 
 /**
  * The chat pipeline: load history from the repo (empty for a new chat) →
  * build the prompt → run the executor inside the tenant's directory →
  * persist both turns → return the reply.
+ *
+ * Repos hand back stored docs; everything leaving this service is a wire DTO
+ * (models/chat.model.js) — routes never see `_id` or `tenantId`.
  *
  * The executor is injected (any object with execute(prompt, {cwd})) — the
  * reasoning layer is pluggable; Codex exec is just the default.
@@ -27,14 +31,16 @@ export class ChatService {
 
   async create(tenant, { title, documentIds = [] }) {
     const documents = await this.resolveDocuments(tenant.id, documentIds);
-    return this.chatRepo.create(tenant.id, {
+    const chat = await this.chatRepo.create(tenant.id, {
       title: title?.trim() || this.defaultTitle(documents),
       documentIds
     });
+    return toChatDto(chat);
   }
 
   async list(tenantId) {
-    return this.chatRepo.list(tenantId);
+    const chats = await this.chatRepo.list(tenantId);
+    return chats.map(toChatDto);
   }
 
   async get(tenantId, chatId) {
@@ -42,7 +48,7 @@ export class ChatService {
     if (!chat) {
       throw new HttpError(404, `Chat ${chatId} not found`);
     }
-    return chat;
+    return toChatDto(chat);
   }
 
   async remove(tenantId, chatId) {
@@ -58,9 +64,13 @@ export class ChatService {
    * documents to an existing chat at any point.
    */
   async addDocuments(tenantId, chatId, documentIds) {
+    if (!Array.isArray(documentIds) || documentIds.length === 0) {
+      throw new HttpError(400, 'documentIds must be a non-empty array');
+    }
     await this.get(tenantId, chatId);
     await this.resolveDocuments(tenantId, documentIds);
-    return this.chatRepo.addDocuments(tenantId, chatId, documentIds);
+    const chat = await this.chatRepo.addDocuments(tenantId, chatId, documentIds);
+    return toChatDto(chat);
   }
 
   async sendMessage(tenant, chatId, content, { onProgress } = {}) {

@@ -1,5 +1,6 @@
 import express from 'express';
 import { asyncHandler } from '../errorHandler.js';
+import { createSseWriter } from '../http/sse.js';
 
 /**
  * Chat session routes. All are tenant-scoped by the auth middleware; any
@@ -39,19 +40,7 @@ export function createChatRoutes(chatService) {
     // SSE headers are written lazily, on the first event: validation errors
     // (empty message, unknown chat) happen before the executor starts and
     // must still surface as ordinary 4xx JSON via the error middleware.
-    let streaming = false;
-    const sendEvent = (event, data) => {
-      if (!streaming) {
-        streaming = true;
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          Connection: 'keep-alive',
-          'X-Accel-Buffering': 'no' // tell reverse proxies not to buffer
-        });
-      }
-      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-    };
+    const { sendEvent, isStreaming } = createSseWriter(res);
 
     try {
       const { reply, messages } = await chatService.sendMessage(req.tenant, req.params.chatId, content, {
@@ -62,7 +51,7 @@ export function createChatRoutes(chatService) {
       sendEvent('done', { reply, messages });
       res.end();
     } catch (error) {
-      if (!streaming) throw error; // headers not sent yet — normal error path
+      if (!isStreaming()) throw error; // headers not sent yet — normal error path
       sendEvent('error', { error: error.error || error.message || 'Chat failed' });
       res.end();
     }
@@ -70,9 +59,6 @@ export function createChatRoutes(chatService) {
 
   router.post('/chats/:chatId/documents', asyncHandler(async (req, res) => {
     const { documentIds } = req.body || {};
-    if (!Array.isArray(documentIds) || documentIds.length === 0) {
-      return res.status(400).json({ success: false, error: 'documentIds must be a non-empty array' });
-    }
     const chat = await chatService.addDocuments(req.tenant.id, req.params.chatId, documentIds);
     res.json({ success: true, chat });
   }));

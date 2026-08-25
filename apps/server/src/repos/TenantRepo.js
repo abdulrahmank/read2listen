@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { toTenantDto } from '../models/tenant.model.js';
 
 /**
  * Tenants: { _id, name, plan, keys: [{ hash, role }], createdAt }.
@@ -33,9 +34,6 @@ export class TenantRepo {
     const doc = await this.collection.findOne({ 'keys.hash': hash });
     if (!doc) return null;
     const key = doc.keys.find((k) => k.hash === hash);
-    return {
-      tenant: { id: doc._id, name: doc.name, plan: doc.plan },
-      role: key.role
-    };
+    return { tenant: toTenantDto(doc), role: key.role };
   }
 }

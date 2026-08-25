@@ -13,7 +13,7 @@ const uploadingCount = ref(0);
 const actionError = ref('');
 
 const selectedId = ref(null);
-const selected = computed(() => documents.value.find((d) => d._id === selectedId.value) || null);
+const selected = computed(() => documents.value.find((d) => d.id === selectedId.value) || null);
 
 // The sidebar edits a draft; Save PATCHes it. Re-seed whenever the selection
 // (or its server state) changes.
@@ -45,7 +45,7 @@ async function uploadFiles(files) {
       uploadingCount.value -= 1;
     }
     // Open the sidebar on the newest upload so its details get filled in.
-    if (lastUploaded) selectedId.value = lastUploaded._id;
+    if (lastUploaded) selectedId.value = lastUploaded.id;
   } catch (e) {
     actionError.value = e.message;
   } finally {
@@ -70,7 +70,7 @@ async function saveDetails() {
   saving.value = true;
   saved.value = false;
   try {
-    await update(selected.value._id, { ...draft });
+    await update(selected.value.id, { ...draft });
     saved.value = true;
   } catch (e) {
     actionError.value = e.message;
@@ -84,7 +84,7 @@ async function removeSelected() {
   if (!doc || !window.confirm(`Delete "${doc.name}" (${doc.filename})?`)) return;
   actionError.value = '';
   try {
-    await remove(doc._id);
+    await remove(doc.id);
     selectedId.value = null;
   } catch (e) {
     actionError.value = e.message;
@@ -133,10 +133,10 @@ async function removeSelected() {
         <div class="doc-grid">
           <div
             v-for="doc in documents"
-            :key="doc._id"
+            :key="doc.id"
             class="doc-card"
-            :class="{ selected: doc._id === selectedId }"
-            @click="selectedId = doc._id === selectedId ? null : doc._id"
+            :class="{ selected: doc.id === selectedId }"
+            @click="selectedId = doc.id === selectedId ? null : doc.id"
           >
             <div class="doc-icon"><FileIcon :filename="doc.filename" /></div>
             <div class="doc-title">{{ doc.name }}</div>

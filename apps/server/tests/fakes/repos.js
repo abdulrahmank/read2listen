@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { toTenantDto } from '../../src/models/tenant.model.js';
 
 /**
  * In-memory implementations of the three repo interfaces. Tests exercise the
@@ -31,10 +32,7 @@ export class InMemoryTenantRepo {
     for (const doc of this.tenants) {
       const key = doc.keys.find((k) => k.hash === hash);
       if (key) {
-        return {
-          tenant: { id: doc._id, name: doc.name, plan: doc.plan },
-          role: key.role
-        };
+        return { tenant: toTenantDto(doc), role: key.role };
       }
     }
     return null;
