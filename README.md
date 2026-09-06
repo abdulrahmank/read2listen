@@ -95,9 +95,47 @@ multi-tenant deployment (see the security model below). Up to four jobs run per 
 process; active jobs restart on demand after a server restart. Deployments with multiple
 server processes may prepare the same uncached document concurrently.
 `MOCK_EXECUTOR=true` uses deterministic reading order without calling Codex.
-Browser PDF extraction remains available as the original-order fallback. Speech uses the browser's Web Speech API;
-voice availability and network use depend on the device and selected voice.
-No speech API key is required. Audio downloads and background playback are not provided.
+Browser PDF extraction remains available as the original-order fallback. Device voices use
+the Web Speech API; voice availability and network use depend on the selected voice.
+
+### Local natural narration (prototype)
+
+In the reader, select **Natural voice on this device · English**, choose your language
+and gender preference, then press **Play natural voice**. This runs Kokoro-82M locally
+in a Web Worker using WebAssembly, with no speech API key, LLM call, or per-minute fee.
+There is no Electron packaging yet; this prototype works in the existing web app.
+US English selects Heart/Michael and UK English selects Emma/George. Other English
+regions use the US accent; other languages retain the device-voice option.
+
+The first play downloads the quantized model and tokenizer from Hugging Face, plus
+the selected voice. Downloads are cached by the browser when storage is available.
+The WASM runtime is served with the app. First-time loading and CPU inference can be
+slow on some devices. Keep the reader open while listening; background playback and
+full offline app startup are not guaranteed. Once its assets are cached, the speech
+engine itself can run offline. Documents still use the existing authenticated server
+library, and Codex reading-order preparation remains separate and can incur usage.
+
+Open **Pronunciation dictionary** and enter one `word = say it as` correction per line,
+for example `API = A P I` or `SQL = sequel`. Corrections match whole words/phrases,
+ignore case, and affect speech only. They are plain spoken substitutions, not IPA/SSML.
+They persist in this browser. Soft hyphens and wrapped lines are cleaned for narration;
+ambiguous hard hyphens are preserved. Kokoro's English frontend handles common number
+and abbreviation normalization. This is not model training or automatic learning.
+
+Complete sentences are preferred, with longer pauses at paragraph boundaries. Very
+long sentences are split, and tokenizer overflow is checked to prevent silent text loss.
+The next passage is generated while the current one plays; slower devices may still
+pause between passages. Replay uses a device-local audio cache keyed by spoken text,
+voice, speed and engine version. The cache evicts older passages above 128 MiB and may
+also be evicted by the browser. Changing a correction, voice or speed generates new audio.
+**Clear saved narration** removes this audio cache; it does not remove the model download
+or dictionary. Browser storage is shared by accounts using that browser profile and
+persists after sign-out. No document text is sent to Hugging Face for speech generation.
+Audio export is not included.
+
+The local engine uses [kokoro-js](https://github.com/hexgrad/kokoro/tree/main/kokoro.js)
+and [Kokoro-82M ONNX weights](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX)
+(Apache-2.0); dependency licenses remain applicable alongside this project's MIT license.
 
 Forked from [feature1-ai/chatify-by-f1](https://github.com/feature1-ai/chatify-by-f1),
 with its MIT license and document chat features retained. The demo below shows
