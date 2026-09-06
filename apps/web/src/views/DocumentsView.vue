@@ -97,12 +97,12 @@ async function removeSelected() {
 
 <template>
   <div class="page wide">
-    <h1>Upload &amp; library</h1>
-    <p>Upload an article or PDF to open it in the reader and start listening.</p>
+    <h1>Uploads</h1>
+    <p>Upload a book or article as a PDF or text file, then start listening.</p>
 
     <p v-if="!isAdmin()" class="empty-state" style="text-align: left; padding: 0 0 16px">
-      You're using a member key — documents are read-only. Ask a tenant admin
-      to add or remove documents.
+      You're using a member key — uploads are read-only. Ask a tenant admin
+      to add or remove uploads.
     </p>
 
     <div v-if="actionError" class="error-banner">{{ actionError }}</div>
@@ -151,17 +151,17 @@ async function removeSelected() {
             <div class="doc-title">{{ doc.name }}</div>
             <div class="doc-file">{{ doc.filename }}</div>
             <div class="doc-meta">v{{ doc.version }} · {{ doc.date }}</div>
-            <router-link :to="{ name: 'reader-document', params: { documentId: doc.id } }" @click.stop @keydown.stop>Open in reader</router-link>
+            <router-link :to="{ name: 'reader-document', params: { documentId: doc.id } }" @click.stop @keydown.stop>Listen now</router-link>
           </div>
           <div v-if="!loading && documents.length === 0" class="empty-state" style="grid-column: 1 / -1">
-            No documents yet{{ isAdmin() ? ' — drop a file above to get started.' : '.' }}
+            No uploads yet{{ isAdmin() ? ' — drop a file above to get started.' : '.' }}
           </div>
         </div>
       </div>
 
       <aside v-if="selected" class="doc-sidebar panel">
         <header>
-          <h2>Document details</h2>
+          <h2>Upload details</h2>
           <button class="close" @click="selectedId = null" aria-label="Close">✕</button>
         </header>
 
@@ -173,7 +173,7 @@ async function removeSelected() {
           </div>
         </div>
 
-        <router-link :to="{ name: 'reader-document', params: { documentId: selected.id } }">Open in reader</router-link>
+        <router-link :to="{ name: 'reader-document', params: { documentId: selected.id } }">Listen now</router-link>
 
         <template v-if="isAdmin()">
           <div>
@@ -193,14 +193,14 @@ async function removeSelected() {
             <textarea
               v-model="draft.use"
               rows="3"
-              placeholder="What should the assistant use this document for?"
+              placeholder="What would you like to ask about this book or article?"
             ></textarea>
           </div>
           <button class="primary" :disabled="saving" @click="saveDetails">
             {{ saving ? 'Saving…' : 'Save details' }}
           </button>
           <span v-if="saved" class="saved-note">Saved ✓</span>
-          <button class="danger" @click="removeSelected">Delete document</button>
+          <button class="danger" @click="removeSelected">Delete upload</button>
         </template>
 
         <dl v-else class="doc-details">

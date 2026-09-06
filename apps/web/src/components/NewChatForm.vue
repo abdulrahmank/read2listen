@@ -12,9 +12,9 @@ onMounted(load);
 const count = computed(() => documents.value.length);
 const referenceNote = computed(() => {
   if (count.value === 0) {
-    return 'No documents in the library yet — the assistant will answer from general knowledge.';
+    return 'No books or articles in the library yet — the assistant will answer from general knowledge.';
   }
-  const noun = count.value === 1 ? 'document' : 'documents';
+  const noun = count.value === 1 ? 'upload' : 'uploads';
   return `All ${count.value} ${noun} in the library will be referenced.`;
 });
 
@@ -28,11 +28,11 @@ function submit() {
 <template>
   <form class="new-chat-form panel" @submit.prevent="submit">
     <label>Title (optional)</label>
-    <input v-model="title" placeholder="e.g. Handbook questions" />
+    <input v-model="title" placeholder="e.g. Questions about my book" />
 
     <p class="doc-picker-hint">{{ referenceNote }}</p>
 
-    <button class="primary" type="submit">Start chat</button>
+    <button class="primary" type="submit">Start asking</button>
     <button type="button" @click="emit('cancel')">Cancel</button>
   </form>
 </template>

@@ -20,7 +20,7 @@ function submit() {
   <form class="composer" @submit.prevent="submit">
     <textarea
       v-model="draft"
-      placeholder="Ask about the documents…"
+      placeholder="Ask about your book or article…"
       @keydown.enter.exact.prevent="submit"
     />
     <button class="primary" type="submit" :disabled="disabled || !draft.trim()">

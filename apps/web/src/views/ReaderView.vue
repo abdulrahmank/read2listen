@@ -23,10 +23,10 @@ onMounted(load);
   <div class="page reader-page">
     <header class="reader-heading">
       <div>
-        <h1>Reader</h1>
-        <p>Your articles and PDFs, ready to read and listen.</p>
+        <h1>Listen to your books and articles</h1>
+        <p>Your books and articles, ready to read and listen.</p>
       </div>
-      <router-link v-if="isAdmin()" class="reader-upload" to="/documents">Upload an article or PDF</router-link>
+      <router-link v-if="isAdmin()" class="reader-upload" to="/documents">Upload a book or article</router-link>
     </header>
 
     <p v-if="loading" role="status">Loading your library…</p>
@@ -35,9 +35,9 @@ onMounted(load);
     </div>
     <template v-else>
       <div v-if="documents.length" class="reader-selection">
-        <label for="reader-document">Choose a document</label>
+        <label for="reader-document">Choose a book or article</label>
         <select id="reader-document" :value="selected?.id || ''" @change="selectDocument">
-          <option v-if="!selected" value="" disabled>Select a document</option>
+          <option v-if="!selected" value="" disabled>Select a book or article</option>
           <option v-for="doc in documents" :key="doc.id" :value="doc.id">{{ doc.name }}</option>
         </select>
       </div>
@@ -49,15 +49,15 @@ onMounted(load);
         <DocumentReader :key="selected.id" :document="selected" />
       </section>
       <section v-else-if="route.params.documentId" class="panel empty-state">
-        <h2>Document unavailable</h2>
-        <p>This document may have been removed or belong to another library.</p>
-        <router-link to="/">Return to the reader</router-link>
+        <h2>Upload unavailable</h2>
+        <p>This upload may have been removed or belong to another library.</p>
+        <router-link to="/">Return to listening</router-link>
       </section>
       <section v-else class="panel empty-state">
         <h2>Your next read starts here</h2>
-        <p v-if="isAdmin()">Upload an article or PDF. It will open here, ready for you to press Read aloud.</p>
-        <p v-else>Your library is empty. Ask an admin to add an article or PDF, then come here to listen.</p>
-        <router-link v-if="isAdmin()" class="reader-upload" to="/documents">Upload your first document</router-link>
+        <p v-if="isAdmin()">Upload a book or article. It will open here, ready for you to press Read aloud.</p>
+        <p v-else>Your library is empty. Ask an admin to add a book or article, then come here to listen.</p>
+        <router-link v-if="isAdmin()" class="reader-upload" to="/documents">Upload your first book or article</router-link>
       </section>
     </template>
   </div>

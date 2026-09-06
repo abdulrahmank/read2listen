@@ -80,7 +80,7 @@ async function onSend(content) {
           {{ doc.name }}
         </span>
         <div class="attach-panel" v-if="attachableDocs.length > 0">
-          <button @click="showAttach = !showAttach">+ Add documents</button>
+          <button @click="showAttach = !showAttach">+ Add books or articles</button>
           <div v-if="showAttach" class="attach-menu panel">
             <div v-for="doc in attachableDocs" :key="doc.id" class="doc-option">
               <input type="checkbox" :id="`attach-${doc.id}`" :value="doc.id" v-model="attachSelection" />
@@ -100,8 +100,9 @@ async function onSend(content) {
     </section>
 
     <section class="chat-main" v-else>
+      <h1 class="ask-heading">Ask about your books and articles</h1>
       <div class="empty-state" style="margin: auto">
-        Select a chat or start a new one to talk to your documents.
+        Choose a conversation or start a new one to ask questions about your books and articles.
       </div>
     </section>
   </div>

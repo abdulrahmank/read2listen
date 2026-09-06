@@ -19,7 +19,7 @@ function create(payload) {
 <template>
   <aside class="chat-sidebar">
     <button class="primary" @click="showNewChat = !showNewChat">
-      {{ showNewChat ? 'Close' : '+ New chat' }}
+      {{ showNewChat ? 'Close' : '+ New conversation' }}
     </button>
 
     <NewChatForm v-if="showNewChat" @create="create" @cancel="showNewChat = false" />
@@ -33,10 +33,10 @@ function create(payload) {
         @click="emit('select', chat.id)"
       >
         <span class="title">{{ chat.title }}</span>
-        <button class="delete" title="Delete chat" @click.stop="emit('remove', chat.id)">✕</button>
+        <button class="delete" title="Delete conversation" @click.stop="emit('remove', chat.id)">✕</button>
       </div>
       <div v-if="chats.length === 0 && !showNewChat" class="empty-state">
-        No chats yet.
+        No conversations yet.
       </div>
     </div>
   </aside>

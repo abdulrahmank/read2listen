@@ -35,7 +35,7 @@ body {
 .brand { font-weight: 700; font-size: 17px; color: var(--text); text-decoration: none; }
 .brand span { color: var(--accent); }
 
-.topbar nav { display: flex; gap: 4px; flex: 1; }
+.topbar nav { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
 .topbar nav a {
   padding: 6px 12px;
   border-radius: 8px;
@@ -335,3 +335,5 @@ tr:last-child td { border-bottom: none; }
   .docs-layout { flex-direction: column; }
   .docs-main, .doc-sidebar { width: 100%; }
 }
+
+.ask-heading { padding: 24px 24px 0; margin: 0; font-size: 26px; }

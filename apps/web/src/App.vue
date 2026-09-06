@@ -21,9 +21,9 @@ async function signOut() {
     <header class="topbar">
       <router-link to="/" class="brand">read<span>2listen</span></router-link>
       <nav v-if="$route.path !== '/login'">
-        <router-link to="/" :class="{ 'router-link-active': $route.name === 'reader-document' }">Reader</router-link>
-        <router-link to="/chats">Chats</router-link>
-        <router-link to="/documents">Documents</router-link>
+        <router-link to="/" :class="{ 'router-link-active': $route.name === 'reader-document' }">Listen</router-link>
+        <router-link to="/chats">Ask</router-link>
+        <router-link to="/documents">Uploads</router-link>
         <router-link to="/settings">Settings</router-link>
       </nav>
       <div class="tenant-badge" v-if="tenant && $route.path !== '/login'">

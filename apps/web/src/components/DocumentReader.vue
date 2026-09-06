@@ -206,7 +206,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="document-reader" aria-label="Read document aloud">
+  <section class="document-reader" aria-label="Listen to a book or article">
     <h3>Listening controls</h3>
     <p v-if="!supported && engine === 'device'">Device voices are unavailable in this browser. Select local narration or try another browser.</p>
     <p v-if="loading" role="status">Preparing reading order… You can listen in the original order while this completes.</p>
@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
       <p role="status">{{ state === 'finished' ? 'Finished reading' : state === 'paused' ? 'Paused' : state === 'generating' ? `Preparing part ${position + 1} of ${chunks.length || '…'}` : state === 'playing' ? `Reading part ${position + 1} of ${chunks.length}` : 'Ready to listen' }}</p>
       <p v-if="active" class="reader-passage">{{ chunks[position] }}</p>
     </template>
-    <article v-if="text" class="reader-text" aria-label="Document text"><pre>{{ text }}</pre></article>
+    <article v-if="text" class="reader-text" aria-label="Book or article text"><pre>{{ text }}</pre></article>
   </section>
 </template>
 

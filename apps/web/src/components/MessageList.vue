@@ -25,7 +25,7 @@ const formatTime = (iso) =>
 <template>
   <div class="messages" ref="scroller">
     <div v-if="messages.length === 0 && !sending" class="empty-state">
-      Ask a question about this chat's documents to get started.
+      Ask a question about your books or articles to get started.
     </div>
     <div
       v-for="(message, index) in messages"
@@ -40,6 +40,6 @@ const formatTime = (iso) =>
     <div v-if="sending && streamingReply" class="bubble assistant">
       <div class="md" v-html="renderMarkdown(streamingReply)"></div>
     </div>
-    <div v-else-if="sending" class="typing">Assistant is reading the documents…</div>
+    <div v-else-if="sending" class="typing">Reading your books and articles…</div>
   </div>
 </template>
