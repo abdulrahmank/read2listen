@@ -12,6 +12,7 @@ import { FileStore } from './FileStore.js';
 import { TenantRepo } from './repos/TenantRepo.js';
 import { DocumentRepo } from './repos/DocumentRepo.js';
 import { ChatRepo } from './repos/ChatRepo.js';
+import { ReaderService } from './services/ReaderService.js';
 import { DocumentService } from './services/DocumentService.js';
 import { ChatService } from './services/ChatService.js';
 import { IntentGuard } from './services/intentGuard.js';
@@ -31,10 +32,11 @@ const documentRepo = new DocumentRepo(db);
 const chatRepo = new ChatRepo(db);
 
 const fileStore = new FileStore();
-const documentService = new DocumentService({ documentRepo, fileStore });
 // The reasoning layer is pluggable: swap the executor here to change backends.
 // MOCK_EXECUTOR=true runs a local demo backend that needs no OpenAI account.
 const executor = process.env.MOCK_EXECUTOR === 'true' ? new MockExecutor() : new CodexExecutor();
+const readerService = new ReaderService({ documentRepo, fileStore, executor: process.env.MOCK_EXECUTOR === 'true' ? null : executor });
+const documentService = new DocumentService({ documentRepo, fileStore, readerService });
 // Screens messages for escape/injection attempts before the agent runs.
 const intentGuard = new IntentGuard({ executor });
 const chatService = new ChatService({ chatRepo, documentRepo, executor, intentGuard });

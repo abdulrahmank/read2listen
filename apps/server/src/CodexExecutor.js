@@ -24,7 +24,7 @@ export class CodexExecutor {
     this.sandboxMode = config.sandboxMode || process.env.CODEX_SANDBOX || 'read-only';
   }
 
-  async execute(prompt, { cwd, onProgress, sandboxMode } = {}) {
+  async execute(prompt, { cwd, onProgress, sandboxMode, outputSchema, stdin, logStderr = true } = {}) {
     if (!cwd) {
       throw new Error('CodexExecutor.execute requires a cwd (the tenant directory)');
     }
@@ -43,13 +43,21 @@ export class CodexExecutor {
 
       // --skip-git-repo-check: tenant dirs are plain data directories, not
       // git repos, and codex exec refuses to run outside one without it.
-      const child = spawn('codex', ['exec', '--skip-git-repo-check', '--sandbox', sandbox, prompt], {
+      const args = ['exec', '--skip-git-repo-check', '--sandbox', sandbox];
+      if (outputSchema) args.push('--output-schema', outputSchema);
+      args.push(stdin === undefined ? prompt : '-');
+      const child = spawn('codex', args, {
         env: process.env,
         cwd,
         // stdin is closed on purpose: if codex ever stops to prompt for
         // input, it must fail immediately instead of hanging the request.
-        stdio: ['ignore', 'pipe', 'pipe']
+        stdio: [stdin === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe']
       });
+
+      if (stdin !== undefined) {
+        child.stdin.on('error', () => {}); // spawn/close handlers report subprocess failures
+        child.stdin.end(`${prompt}\n\n${stdin}`);
+      }
 
       // A stuck subprocess must never hang the HTTP request.
       const timer = setTimeout(() => {
@@ -71,7 +79,7 @@ export class CodexExecutor {
         // info, not debug: codex explains its failures (auth, network,
         // unsupported dir) on stderr, and hiding that cost us a debugging
         // session once already.
-        logger.info('codex stderr', { stderr: chunk.trim() });
+        if (logStderr) logger.info('codex stderr', { stderr: chunk.trim() });
       });
 
       child.on('error', (error) => {
@@ -102,7 +110,7 @@ export class CodexExecutor {
           return resolve({ output: output.trim(), executionTime });
         }
 
-        logger.error('codex exited', { code, signal, executionTime, stderr: errorOutput.trim() });
+        logger.error('codex exited', { code, signal, executionTime, stderr: logStderr ? errorOutput.trim() : '[suppressed for document preparation]' });
         reject({
           success: false,
           error: `codex exited with code ${code}${stderrTail ? `: ${stderrTail}` : ''}`,

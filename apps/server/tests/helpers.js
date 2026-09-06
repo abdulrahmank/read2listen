@@ -4,6 +4,7 @@ import fs from 'fs/promises';
 import { createApp } from '../src/app.js';
 import { hashKey } from '../src/auth.js';
 import { FileStore } from '../src/FileStore.js';
+import { ReaderService } from '../src/services/ReaderService.js';
 import { DocumentService } from '../src/services/DocumentService.js';
 import { ChatService } from '../src/services/ChatService.js';
 import { IntentGuard } from '../src/services/intentGuard.js';
@@ -20,7 +21,7 @@ export const KEYS = {
  * Builds the whole app against in-memory repos, a fake executor, and a
  * throwaway DATA_DIR. Two tenants so isolation is testable.
  */
-export async function createTestContext() {
+export async function createTestContext({ reader = false, readerExecutor = null, extract } = {}) {
   process.env.NODE_ENV = 'test';
   process.env.DATA_DIR = await fs.mkdtemp(path.join(os.tmpdir(), 'chatify-test-'));
 
@@ -43,7 +44,8 @@ export async function createTestContext() {
 
   // The real FileStore against the throwaway DATA_DIR: tests assert on files
   // landing in (and vanishing from) the tenant directories.
-  const documentService = new DocumentService({ documentRepo, fileStore: new FileStore() });
+  const readerService = reader ? new ReaderService({ documentRepo, fileStore: new FileStore(), executor: readerExecutor, extract }) : undefined;
+  const documentService = new DocumentService({ documentRepo, fileStore: new FileStore(), readerService });
   // Heuristic-only in tests: deterministic, no model calls muddying the fake
   // executor's recorded prompts. The model pass is unit-tested separately.
   const intentGuard = new IntentGuard({ executor, mode: 'heuristic' });
@@ -54,6 +56,7 @@ export async function createTestContext() {
 
   return {
     app,
+    readerService,
     executor,
     tenants: { acme, globex },
     repos: { tenantRepo, documentRepo, chatRepo },
@@ -62,6 +65,7 @@ export async function createTestContext() {
 }
 
 export async function cleanupTestContext(ctx) {
+  if (ctx.readerService) await Promise.all([...ctx.readerService.jobs.values()].map(job => job.promise));
   await fs.rm(ctx.dataDir, { recursive: true, force: true });
 }
 

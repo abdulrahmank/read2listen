@@ -46,5 +46,16 @@ export function createDocumentRoutes(documentService, { requireAdmin }) {
     res.json({ success: true, message: `Document ${document.filename} deleted` });
   }));
 
+  if (documentService.readerService) {
+    router.get('/documents/:documentId/reader', asyncHandler(async (req, res) => {
+      res.set('Cache-Control', 'no-store');
+      res.json({ success: true, reader: await documentService.readerService.get(req.tenant.id, req.params.documentId) });
+    }));
+    router.post('/documents/:documentId/reader', asyncHandler(async (req, res) => {
+      const reader = await documentService.readerService.prepare(req.tenant.id, req.params.documentId, req.body?.retry === true);
+      res.set('Cache-Control', 'no-store');
+      res.status(reader.status === 'preparing' ? 202 : 200).json({ success: true, reader });
+    }));
+  }
   return router;
 }

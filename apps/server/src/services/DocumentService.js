@@ -21,9 +21,10 @@ import { toDocumentDto } from '../models/document.model.js';
  * (models/document.model.js) — routes never see `_id` or `tenantId`.
  */
 export class DocumentService {
-  constructor({ documentRepo, fileStore }) {
+  constructor({ documentRepo, fileStore, readerService }) {
     this.documentRepo = documentRepo;
     this.fileStore = fileStore;
+    this.readerService = readerService;
   }
 
   async create(tenant, meta = {}, file) {
@@ -62,6 +63,7 @@ export class DocumentService {
 
     await this.regenerateAgentsMd(tenant);
     logger.info(`Document uploaded: ${filename}`, { tenantId: tenant.id });
+    this.readerService?.prepare(tenant.id, document._id).catch(error => logger.warn('Reader preparation could not start', { error: error.message }));
     return toDocumentDto(document);
   }
 

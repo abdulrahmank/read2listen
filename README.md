@@ -26,8 +26,13 @@ after upload, it opens in the reader with its full text visible. Press
 **Read aloud** to start listening. Choose another document from the reader
 selector, or use **Open in reader** in the library. Document reader URLs can
 be bookmarked and reopened.
-Admins and members can listen, pause, resume, stop, choose a device voice, and
-set playback speed (0.5×–2×). The reader shows the current passage and full text.
+Admins and members can listen, pause, resume, stop, choose a language/region
+and male, female, or no voice preference, and
+set playback speed (0.5×–2×). Preferences are saved on the device; the reader
+selects an installed voice automatically. Locale takes priority over voice gender.
+Browser voices have no standard gender metadata, so recognized voice names and
+explicit provider labels are used; unmatched preferences show a fallback notice.
+The reader shows the selected voice, current passage, and full text.
 Switching documents or leaving the page stops playback.
 
 Supports text PDFs and UTF-8 TXT, Markdown, CSV, TSV, JSON, and log files.
@@ -35,7 +40,25 @@ PDF reading order uses text positions to detect ordinary two-column layouts,
 reading down each column and keeping spanning headings between sections.
 Complex tables, sidebars, and irregular layouts may still need manual review.
 Scanned PDFs require OCR first; password-protected PDFs must be unlocked.
-PDF extraction happens in the browser. Speech uses the browser's Web Speech API;
+Server-side preparation starts after upload, or on first opening an older document.
+Text blocks retain stable IDs, page numbers, and PDF positions. Codex exec receives
+these blocks and returns only their order through a JSON schema. The server rejects
+orders that invent, duplicate, or omit IDs; original block text is never model-generated.
+The result is cached in MongoDB by source SHA-256 and extraction version. Metadata
+edits do not invalidate it. Source changes do. Deleting a document removes its cache.
+
+If Codex is unavailable, its output is invalid, or the document exceeds the AI limit
+(1,500 blocks / 180,000 serialized characters), the reader uses geometric/source order.
+**Retry preparation** retries a fallback result; **Use original reading order** allows
+browser extraction immediately while server work continues. Scanned PDFs still need OCR.
+Preparation uses the existing Codex login/configuration, requires no extra voice API,
+and runs with a read-only sandbox in a temporary workspace. It can add model usage.
+The temporary workspace is not a substitute for OS isolation in an adversarial
+multi-tenant deployment (see the security model below). Up to four jobs run per server
+process; active jobs restart on demand after a server restart. Deployments with multiple
+server processes may prepare the same uncached document concurrently.
+`MOCK_EXECUTOR=true` uses deterministic reading order without calling Codex.
+Browser PDF extraction remains available as the original-order fallback. Speech uses the browser's Web Speech API;
 voice availability and network use depend on the device and selected voice.
 No speech API key is required. Audio downloads and background playback are not provided.
 
@@ -161,6 +184,8 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
 | --- | --- | --- |
 | GET | `/health` | Liveness (no key) |
 | GET | `/api/tenant` | Tenant + role for the presented key |
+| GET | `/api/documents/:id/reader` | Read cached preparation or idle/preparing/error status (tenant-scoped) |
+| POST | `/api/documents/:id/reader` | Start preparation; optional `{ "retry": true }` retries fallback results; returns 202 while preparing |
 | GET | `/api/documents/:id/content` | Download document bytes for the authenticated tenant (admin or member); no caching |
 | GET | `/api/documents` | List the tenant's documents |
 | POST | `/api/documents` **A** | Upload (multipart): `file` + optional `name`/`version`/`date`/`use` (defaulted, editable later) |

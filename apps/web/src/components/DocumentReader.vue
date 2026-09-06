@@ -1,24 +1,32 @@
 <script setup>
-import { ref, watch, onMounted, onBeforeUnmount } from 'vue';
-import { useApi } from '../composables/useApi.js';
-import { documentText } from '../documentText.js';
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
+import { usePreparedDocument } from '../composables/usePreparedDocument.js';
+import { chooseVoice, loadVoicePreferences } from '../voicePreferences.js';
 import { splitSpeech } from '../speech.js';
 
 const props = defineProps({ document: { type: Object, required: true } });
-const { request } = useApi();
 const synth = window.speechSynthesis;
 const supported = !!synth && 'SpeechSynthesisUtterance' in window;
 const text = ref('');
-const loading = ref(false);
 const error = ref('');
 const state = ref('idle');
 const voices = ref([]);
-const voice = ref('');
+const savedVoice = loadVoicePreferences(localStorage, navigator.language || 'en-US');
+const locale = ref(savedVoice.locale);
+const gender = ref(savedVoice.gender);
+const matchedVoice = computed(() => chooseVoice(voices.value, locale.value, gender.value));
+const locales = computed(() => [...new Set([locale.value, ...voices.value.map(voice => voice.lang.replace(/_/g, '-'))])].sort());
+function localeLabel(code) {
+  try { return new Intl.DisplayNames([navigator.language], { type: 'language' }).of(code); }
+  catch { return code; }
+}
+watch([locale, gender], () => {
+  try { localStorage.setItem('read2listen.voice', JSON.stringify({ locale: locale.value, gender: gender.value })); } catch {}
+});
 const rate = ref(1);
 const chunks = ref([]);
 const position = ref(0);
 let generation = 0;
-let controller;
 let utterance;
 
 function stop() {
@@ -37,7 +45,7 @@ function speakNext(token) {
     return;
   }
   utterance = new SpeechSynthesisUtterance(chunks.value[position.value]);
-  const chosen = voices.value.find(item => item.voiceURI === voice.value);
+  const chosen = matchedVoice.value.voice;
   if (chosen) { utterance.voice = chosen; utterance.lang = chosen.lang; }
   utterance.rate = Number(rate.value);
   utterance.onend = () => {
@@ -60,35 +68,29 @@ function play() {
     synth.resume();
     return;
   }
+  if (!gender.value || !matchedVoice.value.voice) return;
   stop();
+  synth.resume();
   state.value = 'playing';
   speakNext(generation);
 }
 function pause() { synth.pause(); state.value = 'paused'; }
 function refreshVoices() { voices.value = synth.getVoices(); }
 
-watch(() => props.document.id, async () => {
-  controller?.abort();
+const { load: prepare, original, preparing: loading, preparationNotice, preparationError, canRetry } = usePreparedDocument(result => {
   stop();
-  const token = generation;
-  controller = new AbortController();
+  text.value = result;
+  chunks.value = splitSpeech(result);
+});
+watch(() => props.document.id, () => {
+  stop();
   text.value = '';
   chunks.value = [];
   error.value = '';
-  loading.value = true;
-  try {
-    const filename = props.document.filename;
-    const bytes = await request(`/api/documents/${props.document.id}/content`, { binary: true, signal: controller.signal });
-    const result = await documentText(bytes, filename);
-    if (token !== generation) return;
-    text.value = result;
-    chunks.value = splitSpeech(result);
-  } catch (e) {
-    if (token === generation && e.name !== 'AbortError') error.value = e.message;
-  } finally {
-    if (token === generation) loading.value = false;
-  }
+  prepare(props.document);
 }, { immediate: true });
+function retryPreparation() { stop(); prepare(props.document, true); }
+function useOriginal() { stop(); original(); }
 
 onMounted(() => {
   if (!supported) return;
@@ -96,7 +98,6 @@ onMounted(() => {
   synth.addEventListener('voiceschanged', refreshVoices);
 });
 onBeforeUnmount(() => {
-  controller?.abort();
   stop();
   synth?.removeEventListener('voiceschanged', refreshVoices);
 });
@@ -106,20 +107,40 @@ onBeforeUnmount(() => {
   <section class="document-reader" aria-label="Read document aloud">
     <h3>Listening controls</h3>
     <p v-if="!supported">Your browser does not support reading aloud. Try a browser with speech synthesis.</p>
-    <p v-if="loading" role="status">Preparing document…</p>
+    <p v-if="loading" role="status">Preparing reading order… You can listen in the original order while this completes.</p>
+    <p v-if="preparationNotice" class="voice-note">{{ preparationNotice }}</p>
+    <p v-if="preparationError" class="error-banner" role="alert">{{ preparationError }}</p>
+    <div v-if="loading || preparationError || preparationNotice" class="preparation-actions">
+      <button v-if="!loading && canRetry" @click="retryPreparation">Retry preparation</button>
+      <button @click="useOriginal">Use original reading order</button>
+    </div>
     <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
     <template v-if="text && supported">
-      <label for="reader-voice">Voice</label>
-      <select id="reader-voice" v-model="voice" :disabled="state === 'playing' || state === 'paused'">
-        <option value="">Device default</option>
-        <option v-for="item in voices" :key="item.voiceURI" :value="item.voiceURI">{{ item.name }} ({{ item.lang }})</option>
-      </select>
+      <div class="voice-preferences">
+        <div>
+          <label for="reader-locale">Language and region</label>
+          <select id="reader-locale" v-model="locale" :disabled="state === 'playing' || state === 'paused'">
+            <option v-for="code in locales" :key="code" :value="code">{{ localeLabel(code) }}</option>
+          </select>
+        </div>
+        <div>
+          <label for="reader-gender">Voice preference</label>
+          <select id="reader-gender" v-model="gender" :disabled="state === 'playing' || state === 'paused'">
+            <option value="" disabled>Choose a voice preference</option>
+            <option value="female">Female</option>
+            <option value="male">Male</option>
+            <option value="any">No preference</option>
+          </select>
+        </div>
+      </div>
+      <p v-if="gender && matchedVoice.voice" class="voice-note">Selected voice: {{ matchedVoice.voice.name }}</p>
+      <p v-if="matchedVoice.notice" class="voice-note">{{ matchedVoice.notice }}</p>
       <label for="reader-speed">Speed</label>
       <select id="reader-speed" v-model="rate" :disabled="state === 'playing' || state === 'paused'">
         <option v-for="speed in [0.5, 0.75, 1, 1.25, 1.5, 2]" :key="speed" :value="speed">{{ speed }}×</option>
       </select>
       <div class="reader-controls">
-        <button v-if="state !== 'playing'" class="primary" @click="play">{{ state === 'paused' ? 'Resume' : state === 'finished' ? 'Read again' : 'Read aloud' }}</button>
+        <button v-if="state !== 'playing'" class="primary" :disabled="!gender || !matchedVoice.voice || loading" @click="play">{{ state === 'paused' ? 'Resume' : state === 'finished' ? 'Read again' : 'Read aloud' }}</button>
         <button v-else @click="pause">Pause</button>
         <button :disabled="state === 'idle'" @click="stop">Stop</button>
       </div>
@@ -132,6 +153,9 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+.voice-preferences { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.voice-note { color: var(--muted); font-size: 13px; }
+.preparation-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .document-reader h3 { margin-top: 0; }
 select, progress { width: 100%; margin: 4px 0 12px; }
 .reader-controls { display: flex; gap: 8px; margin: 12px 0; }
