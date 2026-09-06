@@ -104,7 +104,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="document-reader" aria-label="Read document aloud">
-    <h3>Listen to this document</h3>
+    <h3>Listening controls</h3>
     <p v-if="!supported">Your browser does not support reading aloud. Try a browser with speech synthesis.</p>
     <p v-if="loading" role="status">Preparing document…</p>
     <p v-if="error" class="error-banner" role="alert">{{ error }}</p>
@@ -127,14 +127,15 @@ onBeforeUnmount(() => {
       <p role="status">{{ state === 'finished' ? 'Finished reading' : state === 'paused' ? 'Paused' : state === 'playing' ? `Reading part ${position + 1} of ${chunks.length}` : 'Ready to listen' }}</p>
       <p v-if="state === 'playing' || state === 'paused'" class="reader-passage">{{ chunks[position] }}</p>
     </template>
-    <details v-if="text"><summary>Document text</summary><pre>{{ text }}</pre></details>
+    <article v-if="text" class="reader-text" aria-label="Document text"><pre>{{ text }}</pre></article>
   </section>
 </template>
 
 <style scoped>
-.document-reader { border-top: 1px solid var(--border, #ddd); padding-top: 16px; }
+.document-reader h3 { margin-top: 0; }
 select, progress { width: 100%; margin: 4px 0 12px; }
 .reader-controls { display: flex; gap: 8px; margin: 12px 0; }
 .reader-passage { padding: 12px; background: #eef5ff; color: #172338; border-radius: 8px; }
-pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 280px; overflow-y: auto; font: inherit; }
+.reader-text { border-top: 1px solid var(--border); margin-top: 28px; padding-top: 28px; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 20px/1.85 Georgia, serif; margin: 0; }
 </style>

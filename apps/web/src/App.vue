@@ -16,6 +16,7 @@ onMounted(() => {
     <header class="topbar">
       <router-link to="/" class="brand">read<span>2listen</span></router-link>
       <nav>
+        <router-link to="/" :class="{ 'router-link-active': $route.name === 'reader-document' }">Reader</router-link>
         <router-link to="/chats">Chats</router-link>
         <router-link to="/documents">Documents</router-link>
         <router-link to="/settings">Settings</router-link>

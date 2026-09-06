@@ -3,7 +3,9 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useDocuments } from '../composables/useDocuments.js';
 import { useTenant } from '../composables/useTenant.js';
 import FileIcon from '../components/FileIcon.vue';
-import DocumentReader from '../components/DocumentReader.vue';
+import { useRouter } from 'vue-router';
+
+const router = useRouter();
 
 const { documents, loading, error, load, create, update, remove } = useDocuments();
 const { isAdmin } = useTenant();
@@ -36,7 +38,7 @@ const formatSize = (bytes) => {
 };
 
 async function uploadFiles(files) {
-  if (!files.length) return;
+  if (!files.length || uploadingCount.value) return;
   actionError.value = '';
   uploadingCount.value = files.length;
   let lastUploaded = null;
@@ -45,8 +47,8 @@ async function uploadFiles(files) {
       lastUploaded = await create({ file });
       uploadingCount.value -= 1;
     }
-    // Open the sidebar on the newest upload so its details get filled in.
-    if (lastUploaded) selectedId.value = lastUploaded.id;
+    // The reader is the next step after a successful upload.
+    if (lastUploaded) await router.push({ name: 'reader-document', params: { documentId: lastUploaded.id } });
   } catch (e) {
     actionError.value = e.message;
   } finally {
@@ -95,7 +97,8 @@ async function removeSelected() {
 
 <template>
   <div class="page wide">
-    <h1>Document library</h1>
+    <h1>Upload &amp; library</h1>
+    <p>Upload an article or PDF to open it in the reader and start listening.</p>
 
     <p v-if="!isAdmin()" class="empty-state" style="text-align: left; padding: 0 0 16px">
       You're using a member key — documents are read-only. Ask a tenant admin
@@ -138,7 +141,7 @@ async function removeSelected() {
             class="doc-card"
             role="button"
             tabindex="0"
-            :aria-label="`Open ${doc.name} to read or listen`"
+            :aria-label="`View details for ${doc.name}`"
             @keydown.enter.prevent="selectedId = doc.id"
             @keydown.space.prevent="selectedId = doc.id"
             :class="{ selected: doc.id === selectedId }"
@@ -148,6 +151,7 @@ async function removeSelected() {
             <div class="doc-title">{{ doc.name }}</div>
             <div class="doc-file">{{ doc.filename }}</div>
             <div class="doc-meta">v{{ doc.version }} · {{ doc.date }}</div>
+            <router-link :to="{ name: 'reader-document', params: { documentId: doc.id } }" @click.stop @keydown.stop>Open in reader</router-link>
           </div>
           <div v-if="!loading && documents.length === 0" class="empty-state" style="grid-column: 1 / -1">
             No documents yet{{ isAdmin() ? ' — drop a file above to get started.' : '.' }}
@@ -169,7 +173,7 @@ async function removeSelected() {
           </div>
         </div>
 
-        <DocumentReader :key="selected.id" :document="selected" />
+        <router-link :to="{ name: 'reader-document', params: { documentId: selected.id } }">Open in reader</router-link>
 
         <template v-if="isAdmin()">
           <div>

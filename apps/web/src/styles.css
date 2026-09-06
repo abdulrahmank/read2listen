@@ -326,3 +326,12 @@ tr:last-child td { border-bottom: none; }
   gap: 8px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 }
+
+@media (max-width: 640px) {
+  .topbar { height: auto; min-height: 56px; flex-wrap: wrap; gap: 8px; padding: 12px; }
+  .topbar nav { order: 3; flex-basis: 100%; }
+  .topbar nav a { padding: 6px 10px; }
+  .tenant-badge { margin-left: auto; }
+  .docs-layout { flex-direction: column; }
+  .docs-main, .doc-sidebar { width: 100%; }
+}

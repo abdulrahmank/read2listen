@@ -21,7 +21,11 @@ continue where they left off.
 
 ## Read aloud
 
-Upload a document, select its card in **Documents**, then press **Read aloud**.
+The home page is the **Reader**. Upload an article or PDF in **Documents**;
+after upload, it opens in the reader with its full text visible. Press
+**Read aloud** to start listening. Choose another document from the reader
+selector, or use **Open in reader** in the library. Document reader URLs can
+be bookmarked and reopened.
 Admins and members can listen, pause, resume, stop, choose a device voice, and
 set playback speed (0.5×–2×). The reader shows the current passage and full text.
 Switching documents or leaving the page stops playback.
