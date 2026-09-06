@@ -9,6 +9,8 @@ import { createApp } from './app.js';
 import { CodexExecutor, logCodexVersion } from './CodexExecutor.js';
 import { MockExecutor } from './MockExecutor.js';
 import { FileStore } from './FileStore.js';
+import { SessionRepo } from './repos/SessionRepo.js';
+import { GoogleLogin, googleConfig } from './services/GoogleLogin.js';
 import { TenantRepo } from './repos/TenantRepo.js';
 import { DocumentRepo } from './repos/DocumentRepo.js';
 import { ChatRepo } from './repos/ChatRepo.js';
@@ -22,6 +24,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = path.resolve(__dirname, '../../web/dist');
 
 dotenv.config();
+const loginConfig = googleConfig();
 
 logCodexVersion();
 
@@ -43,7 +46,8 @@ const chatService = new ChatService({ chatRepo, documentRepo, executor, intentGu
 
 await ensureDefaultTenant(tenantRepo);
 
-const { app, finish } = createApp({ tenantRepo, documentService, chatService });
+const login = new GoogleLogin({ tenantRepo, sessionRepo: new SessionRepo(db), config: loginConfig });
+const { app, finish } = createApp({ tenantRepo, documentService, chatService, login });
 
 // Serve the built SPA when it exists (production / docker); in development
 // the Vite dev server runs separately on its own port.

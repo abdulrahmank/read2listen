@@ -1,6 +1,7 @@
 import os from 'os';
 import path from 'path';
 import fs from 'fs/promises';
+import { GoogleLogin } from '../src/services/GoogleLogin.js';
 import { createApp } from '../src/app.js';
 import { hashKey } from '../src/auth.js';
 import { FileStore } from '../src/FileStore.js';
@@ -21,7 +22,7 @@ export const KEYS = {
  * Builds the whole app against in-memory repos, a fake executor, and a
  * throwaway DATA_DIR. Two tenants so isolation is testable.
  */
-export async function createTestContext({ reader = false, readerExecutor = null, extract } = {}) {
+export async function createTestContext({ reader = false, readerExecutor = null, extract, loginOptions } = {}) {
   process.env.NODE_ENV = 'test';
   process.env.DATA_DIR = await fs.mkdtemp(path.join(os.tmpdir(), 'chatify-test-'));
 
@@ -51,11 +52,13 @@ export async function createTestContext({ reader = false, readerExecutor = null,
   const intentGuard = new IntentGuard({ executor, mode: 'heuristic' });
   const chatService = new ChatService({ chatRepo, documentRepo, executor, intentGuard });
 
-  const { app, finish } = createApp({ tenantRepo, documentService, chatService });
+  const login = loginOptions ? new GoogleLogin({ ...loginOptions, tenantRepo }) : undefined;
+  const { app, finish } = createApp({ tenantRepo, documentService, chatService, login });
   finish();
 
   return {
     app,
+    login,
     readerService,
     executor,
     tenants: { acme, globex },

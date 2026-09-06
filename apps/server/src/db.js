@@ -15,6 +15,8 @@ export async function connectDb() {
 
   await Promise.all([
     db.collection('tenants').createIndex({ 'keys.hash': 1 }),
+    db.collection('tenants').createIndex({ googleSub: 1 }, { unique: true, sparse: true }),
+    db.collection('authSessions').createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 }),
     db.collection('documents').createIndex({ tenantId: 1 }),
     db.collection('chats').createIndex({ tenantId: 1, updatedAt: -1 })
   ]);

@@ -10,6 +10,20 @@ export class TenantRepo {
     this.collection = db.collection('tenants');
   }
 
+  async findById(id) { return this.collection.findOne({ _id: id }); }
+
+  async findOrCreateGoogle(googleSub, name) {
+    try {
+      return await this.collection.findOneAndUpdate({ googleSub }, { $setOnInsert: {
+        _id: crypto.randomUUID(), googleSub, name: `${String(name).slice(0, 100)}'s library`,
+        plan: 'free', keys: [], createdAt: new Date().toISOString()
+      } }, { upsert: true, returnDocument: 'after' });
+    } catch (error) {
+      if (error.code === 11000) return this.collection.findOne({ googleSub });
+      throw error;
+    }
+  }
+
   async count() {
     return this.collection.countDocuments();
   }

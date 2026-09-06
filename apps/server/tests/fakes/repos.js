@@ -12,6 +12,14 @@ export class InMemoryTenantRepo {
     this.tenants = [];
   }
 
+  async findById(id) { return this.tenants.find(tenant => tenant._id === id) || null; }
+  async findOrCreateGoogle(googleSub, name) {
+    const existing = this.tenants.find(tenant => tenant.googleSub === googleSub);
+    if (existing) return existing;
+    const doc = { _id: crypto.randomUUID(), googleSub, name: `${name}'s library`, keys: [], plan: 'free' };
+    this.tenants.push(doc);
+    return doc;
+  }
   async count() {
     return this.tenants.length;
   }
@@ -146,4 +154,19 @@ export class InMemoryChatRepo {
     this.chats = this.chats.filter((c) => !(c._id === chatId && c.tenantId === tenantId));
     return this.chats.length < before;
   }
+}
+
+export class InMemorySessionRepo {
+  constructor() { this.records = new Map(); }
+  async create(record) { this.records.set(record._id, record); }
+  async find(id, kind) {
+    const record = this.records.get(id);
+    return record?.kind === kind && record.expiresAt > new Date() ? record : null;
+  }
+  async consume(id, kind) {
+    const record = await this.find(id, kind);
+    if (record) this.records.delete(id);
+    return record;
+  }
+  async remove(id) { this.records.delete(id); }
 }

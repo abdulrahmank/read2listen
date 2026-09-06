@@ -13,6 +13,9 @@ services:
     environment:
       MONGODB_URI: mongodb://mongo:27017/chatify
       DATA_DIR: /data
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:4103}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # Demo mode: no OpenAI account needed. Flip to false + set OPENAI_API_KEY for real AI.
       MOCK_EXECUTOR: ${MOCK_EXECUTOR:-true}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}

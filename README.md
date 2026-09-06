@@ -19,6 +19,43 @@ continue where they left off.
 > paid cloud edition runs the same core with billing, quotas, and hard tenant sandboxing
 > attached at documented seams — never as a fork.
 
+## Google sign-in
+
+The login page supports **Continue with Google** and retains an API-key login option.
+Each Google account gets a private library with upload/manage access. Accounts are
+matched by Google's stable subject ID, not email; signing in does not grant access
+to the existing default/API-key library. Sharing and linking existing libraries are
+not implemented.
+
+To enable Google SSO:
+
+1. Create a Google Cloud OAuth client of type **Web application**, configure Google
+   Auth Platform branding/audience, and add test users while the app is in Testing.
+2. Register the exact authorized redirect URI:
+   `https://read2listen.com/api/auth/google/callback`.
+3. Set these server variables (keep the secret out of frontend code and Git):
+   ```dotenv
+   PUBLIC_APP_URL=https://read2listen.com
+   GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+   GOOGLE_CLIENT_SECRET=your-client-secret
+   ```
+4. Restart the server. Serve the app and `/api` through the same HTTPS origin.
+
+For local development with Vite, use `PUBLIC_APP_URL=http://localhost:5173` and
+register `http://localhost:5173/api/auth/google/callback` in the OAuth client.
+Vite proxies `/api` to the backend. For the Docker app without Vite, use port 3000
+instead. Use the same hostname consistently; localhost and 127.0.0.1 are different
+origins. Google sign-in stays disabled until the credentials are configured.
+
+The backend exchanges authorization codes using PKCE and verifies Google ID token
+signatures, issuer, audience, expiry, verified email and nonce. One-time login state
+is bound to an HttpOnly cookie. Seven-day sessions use opaque, hashed tokens stored
+in MongoDB with TTL expiry; HTTPS cookies are Secure/HttpOnly/SameSite=Lax. Session
+mutations require a CSRF token and a matching origin when present. Logout revokes the
+server session. Google access/refresh tokens are not stored. Session cookies are
+supported on the configured `PUBLIC_APP_URL` origin; API-key integrations remain
+available. No default shared tenant is assigned to a Google login.
+
 ## Read aloud
 
 The home page is the **Reader**. Upload an article or PDF in **Documents**;
@@ -178,10 +215,17 @@ The server needs a MongoDB (e.g. `docker run -p 27017:27017 mongo:7`) and the
 
 ## API
 
-All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
+Protected `/api` routes accept a Google session cookie or `X-API-Key`.
+`/api/auth/*` provides login configuration, session inspection, OAuth callbacks,
+and logout. Session mutations require `X-CSRF-Token`. Roles: **A** = admin key required.
 
 | Method | Path | Description |
 | --- | --- | --- |
+| GET | `/api/auth/config` | Whether Google sign-in is enabled (no credentials exposed) |
+| GET | `/api/auth/session` | Current cookie session and CSRF token; or authenticated=false |
+| GET | `/api/auth/google` | Start Google sign-in |
+| GET | `/api/auth/google/callback` | Validate callback and create session |
+| POST | `/api/auth/logout` | Revoke current cookie session (CSRF required when signed in) |
 | GET | `/health` | Liveness (no key) |
 | GET | `/api/tenant` | Tenant + role for the presented key |
 | GET | `/api/documents/:id/reader` | Read cached preparation or idle/preparing/error status (tenant-scoped) |

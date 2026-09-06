@@ -1,3 +1,4 @@
+import { useSession } from './useSession.js';
 import { useSettings } from './useSettings.js';
 
 /**
@@ -6,9 +7,19 @@ import { useSettings } from './useSettings.js';
  */
 export function useApi() {
   const { settings } = useSettings();
+  const { session } = useSession();
+  const authHeaders = () => session.authenticated ? { 'X-CSRF-Token': session.csrfToken } : { 'X-API-Key': settings.apiKey };
+  function checkSession(response) {
+    if (response.status === 401 && session.authenticated) {
+      session.authenticated = false;
+      session.user = null;
+      session.csrfToken = '';
+      window.location.assign('/login');
+    }
+  }
 
   async function send(path, { method = 'GET', body, formData, binary = false, signal } = {}) {
-    const headers = { 'X-API-Key': settings.apiKey };
+    const headers = authHeaders();
     let payload;
 
     if (formData) {
@@ -20,11 +31,13 @@ export function useApi() {
 
     const response = await fetch(`${settings.apiBase}${path}`, {
       method,
+      credentials: session.authenticated ? 'include' : 'same-origin',
       signal,
       headers,
       body: payload
     });
 
+    checkSession(response);
     if (response.ok && binary) return response.arrayBuffer();
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -41,17 +54,19 @@ export function useApi() {
    */
   async function stream(path, { body, onEvent } = {}) {
     const headers = {
-      'X-API-Key': settings.apiKey,
+      ...authHeaders(),
       Accept: 'text/event-stream',
       'Content-Type': 'application/json'
     };
 
     const response = await fetch(`${settings.apiBase}${path}`, {
       method: 'POST',
+      credentials: session.authenticated ? 'include' : 'same-origin',
       headers,
       body: JSON.stringify(body)
     });
 
+    checkSession(response);
     if (!(response.headers.get('content-type') || '').includes('text/event-stream')) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {

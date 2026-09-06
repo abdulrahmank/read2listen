@@ -8,10 +8,17 @@ export const hashKey = (key) =>
  * X-API-Key → tenant + role. Keys are stored hashed; a key maps to exactly
  * one tenant, which is what scopes every downstream query and path.
  */
-export function createAuth(tenantRepo) {
+export function createAuth(tenantRepo, login) {
   const authenticate = asyncHandler(async (req, res, next) => {
     const apiKey = req.headers['x-api-key'];
     if (!apiKey) {
+      const session = await login?.session(req);
+      if (session) {
+        if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method)) login.verifyCsrf(req, session);
+        req.tenant = session.tenant;
+        req.role = session.role;
+        return next();
+      }
       return res.status(401).json({ success: false, error: 'Missing API key' });
     }
 

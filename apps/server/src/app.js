@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import logger from './logger.js';
+import { createAuthRoutes } from './routes/authRoutes.js';
 import { createAuth } from './auth.js';
 import { createDocumentRoutes } from './routes/documentRoutes.js';
 import { createChatRoutes } from './routes/chatRoutes.js';
@@ -13,15 +14,16 @@ import { errorHandler, notFoundHandler } from './errorHandler.js';
  * with in-memory repos and a stub executor. src/index.js does the real
  * wiring (Mongo, Codex exec, static SPA).
  */
-export function createApp({ tenantRepo, documentService, chatService }) {
+export function createApp({ tenantRepo, documentService, chatService, login }) {
   const app = express();
-  const auth = createAuth(tenantRepo);
+  const auth = createAuth(tenantRepo, login);
 
   app.use(helmet());
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: login?.config.origin || process.env.CORS_ORIGIN || '*',
+    credentials: !!login,
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'X-API-Key']
+    allowedHeaders: ['Content-Type', 'X-API-Key', 'X-CSRF-Token']
   }));
   app.use(express.json({ limit: '1mb' }));
 
@@ -34,6 +36,7 @@ export function createApp({ tenantRepo, documentService, chatService }) {
     res.json({ success: true, status: 'healthy', uptime: process.uptime() });
   });
 
+  app.use('/api/auth', createAuthRoutes(login));
   app.use('/api', auth.authenticate);
   app.use('/api', createTenantRoutes());
   app.use('/api', createDocumentRoutes(documentService, auth));

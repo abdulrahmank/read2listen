@@ -7,6 +7,9 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       MONGODB_URI: mongodb://mongo:27017/chatify
       DATA_DIR: /data
+      PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       DEFAULT_ADMIN_KEY: ${DEFAULT_ADMIN_KEY:-}
       DEFAULT_MEMBER_KEY: ${DEFAULT_MEMBER_KEY:-}
     volumes:
