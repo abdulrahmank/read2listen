@@ -47,7 +47,7 @@ async function createChat(payload) {
 
 async function removeChat(chatId) {
   await chatsStore.remove(chatId);
-  if (chatId === activeChatId.value) router.push('/');
+  if (chatId === activeChatId.value) router.push('/chats');
 }
 
 async function attach() {

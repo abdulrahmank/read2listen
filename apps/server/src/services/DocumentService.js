@@ -101,6 +101,17 @@ export class DocumentService {
     return documents.map(toDocumentDto);
   }
 
+  async content(tenantId, documentId) {
+    const document = await this.documentRepo.findById(tenantId, documentId);
+    if (!document) throw new HttpError(404, 'Document not found');
+    try {
+      return await this.fileStore.read(documentPath(tenantId, document.filename));
+    } catch (error) {
+      if (error.code === 'ENOENT') throw new HttpError(404, 'Document file not found');
+      throw error;
+    }
+  }
+
   async remove(tenant, documentId) {
     const document = await this.documentRepo.findById(tenant.id, documentId);
     if (!document) {

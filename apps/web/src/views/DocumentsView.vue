@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useDocuments } from '../composables/useDocuments.js';
 import { useTenant } from '../composables/useTenant.js';
 import FileIcon from '../components/FileIcon.vue';
+import DocumentReader from '../components/DocumentReader.vue';
 
 const { documents, loading, error, load, create, update, remove } = useDocuments();
 const { isAdmin } = useTenant();
@@ -135,6 +136,11 @@ async function removeSelected() {
             v-for="doc in documents"
             :key="doc.id"
             class="doc-card"
+            role="button"
+            tabindex="0"
+            :aria-label="`Open ${doc.name} to read or listen`"
+            @keydown.enter.prevent="selectedId = doc.id"
+            @keydown.space.prevent="selectedId = doc.id"
             :class="{ selected: doc.id === selectedId }"
             @click="selectedId = doc.id === selectedId ? null : doc.id"
           >
@@ -162,6 +168,8 @@ async function removeSelected() {
             <div class="doc-meta">{{ formatSize(selected.size) }} · uploaded {{ selected.uploadedAt?.slice(0, 10) }}</div>
           </div>
         </div>
+
+        <DocumentReader :key="selected.id" :document="selected" />
 
         <template v-if="isAdmin()">
           <div>

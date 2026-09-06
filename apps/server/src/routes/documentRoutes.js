@@ -14,6 +14,13 @@ export function createDocumentRoutes(documentService, { requireAdmin }) {
     limits: { fileSize: maxUploadBytes() }
   });
 
+  router.get('/documents/:documentId/content', asyncHandler(async (req, res) => {
+    const content = await documentService.content(req.tenant.id, req.params.documentId);
+    res.set('Cache-Control', 'no-store');
+    res.set('Content-Disposition', 'attachment');
+    res.type('application/octet-stream').send(content);
+  }));
+
   router.get('/documents', asyncHandler(async (req, res) => {
     const documents = await documentService.list(req.tenant.id);
     res.json({ success: true, documents, count: documents.length });

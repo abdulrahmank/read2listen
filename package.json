@@ -1,8 +1,9 @@
 {
-  "name": "chatify-by-f1",
+  "name": "read2listen",
   "version": "0.1.0",
+  "homepage": "https://read2listen.com",
   "private": true,
-  "description": "Open-source, multi-tenant document chat: upload documents per tenant, chat with them via a pluggable agent backend (Codex exec by default).",
+  "description": "Read uploaded documents aloud and chat with them: upload documents per tenant, chat with them via a pluggable agent backend (Codex exec by default).",
   "type": "module",
   "workspaces": [
     "apps/*"
@@ -12,12 +13,12 @@
     "dev:web": "npm run dev --workspace apps/web",
     "build": "npm run build --workspace apps/web",
     "start": "npm run start --workspace apps/server",
-    "test": "npm test --workspace apps/server",
+    "test": "npm test --workspace apps/server && node --test apps/web/tests/*.test.js",
     "docker:build": "docker build -t chatify-by-f1 .",
     "docker:up": "docker compose up --build"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13.0"
   },
   "license": "MIT"
 }

@@ -7,7 +7,7 @@ import { useSettings } from './useSettings.js';
 export function useApi() {
   const { settings } = useSettings();
 
-  async function send(path, { method = 'GET', body, formData } = {}) {
+  async function send(path, { method = 'GET', body, formData, binary = false, signal } = {}) {
     const headers = { 'X-API-Key': settings.apiKey };
     let payload;
 
@@ -20,10 +20,12 @@ export function useApi() {
 
     const response = await fetch(`${settings.apiBase}${path}`, {
       method,
+      signal,
       headers,
       body: payload
     });
 
+    if (response.ok && binary) return response.arrayBuffer();
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       throw new Error(data.error || `Request failed (${response.status})`);

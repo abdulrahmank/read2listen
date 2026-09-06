@@ -1,5 +1,5 @@
 # Stage 1: install workspaces and build the SPA
-FROM node:20-slim AS build
+FROM node:22-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY apps/server/package.json apps/server/
@@ -9,12 +9,12 @@ COPY apps ./apps
 RUN npm run build --workspace apps/web
 
 # Stage 2: runtime.
-# Base is node:20-slim (Debian), NOT alpine — the Codex CLI ships a
+# Base is node:22-slim (Debian), NOT alpine — the Codex CLI ships a
 # glibc-linked Rust binary that does not run on musl.
-FROM node:20-slim
+FROM node:22-slim
 WORKDIR /app
 
-# ca-certificates: node:20-slim ships without a system trust store (Node has
+# ca-certificates: node:22-slim ships without a system trust store (Node has
 # its own bundled roots), but codex is a Rust binary that reads /etc/ssl/certs
 # — without this it rejects every TLS peer with UnknownIssuer.
 # poppler-utils: pdftotext, so the agent can read uploaded PDFs.

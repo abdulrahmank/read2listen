@@ -1,6 +1,6 @@
 import { reactive, watch } from 'vue';
 
-const STORAGE_KEY = 'chatify.settings';
+const STORAGE_KEY = 'read2listen.settings';
 
 /**
  * Connection settings, persisted to localStorage. apiBase stays empty when

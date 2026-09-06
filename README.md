@@ -2,9 +2,11 @@
   <img src="logo.svg" alt="chatify-by-f1" width="88" height="99" />
 </p>
 
-# chatify-by-f1
+# read2listen
 
-**Chat with your documents.** Upload documents with a declared purpose, then converse with an
+Project domain: **read2listen.com**.
+
+**Listen to your documents, then chat with them.** Upload documents with a declared purpose, then converse with an
 AI assistant that reads them — multi-tenant, self-hostable, and open source.
 
 Admins drop documents into their tenant's library (name, version, date, and *use* — what the
@@ -16,6 +18,23 @@ continue where they left off.
 > **Open core.** This repository is the complete, free, self-hostable product (MIT). A hosted,
 > paid cloud edition runs the same core with billing, quotas, and hard tenant sandboxing
 > attached at documented seams — never as a fork.
+
+## Read aloud
+
+Upload a document, select its card in **Documents**, then press **Read aloud**.
+Admins and members can listen, pause, resume, stop, choose a device voice, and
+set playback speed (0.5×–2×). The reader shows the current passage and full text.
+Switching documents or leaving the page stops playback.
+
+Supports text PDFs and UTF-8 TXT, Markdown, CSV, TSV, JSON, and log files.
+Scanned PDFs require OCR first; password-protected PDFs must be unlocked.
+PDF extraction happens in the browser. Speech uses the browser's Web Speech API;
+voice availability and network use depend on the device and selected voice.
+No speech API key is required. Audio downloads and background playback are not provided.
+
+Forked from [feature1-ai/chatify-by-f1](https://github.com/feature1-ai/chatify-by-f1),
+with its MIT license and document chat features retained. The demo below shows
+upstream chat features.
 
 ## Demo
 
@@ -90,8 +109,8 @@ credentials are load-bearing here — see the security model below.
 ## Quick start (Docker)
 
 ```bash
-git clone https://github.com/feature1-ai/chatify-by-f1.git
-cd chatify-by-f1
+git clone https://github.com/abdulrahmank/read2listen.git
+cd read2listen
 cp .env.example .env        # set OPENAI_API_KEY
 docker compose up --build
 ```
@@ -103,7 +122,18 @@ First boot creates a **default tenant** and prints its admin + member API keys t
 To pin the bootstrap keys instead, set `DEFAULT_ADMIN_KEY` / `DEFAULT_MEMBER_KEY` in `.env`
 before the first boot.
 
+## Deploy at read2listen.com
+
+Run the Docker Compose stack on your host and put an HTTPS reverse proxy in
+front of port 3000. Point the domain's DNS records at that host, provision TLS
+for `read2listen.com`, and proxy requests to the app. The web app and `/api`
+should share the same origin; leave the API base URL in Settings empty.
+Set `CORS_ORIGIN=https://read2listen.com` in the server environment.
+Repository creation does not configure DNS, hosting, or certificates.
+
 ## Local development
+
+Requires Node.js 22.13 or newer.
 
 ```bash
 npm install
@@ -124,6 +154,7 @@ All `/api` routes require `X-API-Key`. Roles: **A** = admin key required.
 | --- | --- | --- |
 | GET | `/health` | Liveness (no key) |
 | GET | `/api/tenant` | Tenant + role for the presented key |
+| GET | `/api/documents/:id/content` | Download document bytes for the authenticated tenant (admin or member); no caching |
 | GET | `/api/documents` | List the tenant's documents |
 | POST | `/api/documents` **A** | Upload (multipart): `file` + optional `name`/`version`/`date`/`use` (defaulted, editable later) |
 | PATCH | `/api/documents/:id` **A** | Edit metadata: any of `{ name, version, date, use }` (AGENTS.md refresh) |

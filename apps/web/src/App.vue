@@ -14,9 +14,9 @@ onMounted(() => {
 <template>
   <div class="shell">
     <header class="topbar">
-      <router-link to="/" class="brand">chatify<span>-by-f1</span></router-link>
+      <router-link to="/" class="brand">read<span>2listen</span></router-link>
       <nav>
-        <router-link to="/">Chats</router-link>
+        <router-link to="/chats">Chats</router-link>
         <router-link to="/documents">Documents</router-link>
         <router-link to="/settings">Settings</router-link>
       </nav>

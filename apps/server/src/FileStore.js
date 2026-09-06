@@ -7,6 +7,10 @@ import fs from 'fs/promises';
  * built exclusively by tenantDir.js — this class never constructs them.
  */
 export class FileStore {
+  async read(filePath) {
+    return fs.readFile(filePath);
+  }
+
   /** @param {string} filePath @param {Buffer|string} data */
   async write(filePath, data) {
     await fs.writeFile(filePath, data);

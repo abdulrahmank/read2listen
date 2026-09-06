@@ -7,7 +7,8 @@ import { useSettings } from './composables/useSettings.js';
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', component: ChatView },
+    { path: '/', redirect: '/documents' },
+    { path: '/chats', component: ChatView },
     { path: '/chats/:chatId', component: ChatView, props: true },
     { path: '/documents', component: DocumentsView },
     { path: '/settings', component: SettingsView }
