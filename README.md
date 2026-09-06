@@ -31,6 +31,9 @@ set playback speed (0.5×–2×). The reader shows the current passage and full 
 Switching documents or leaving the page stops playback.
 
 Supports text PDFs and UTF-8 TXT, Markdown, CSV, TSV, JSON, and log files.
+PDF reading order uses text positions to detect ordinary two-column layouts,
+reading down each column and keeping spanning headings between sections.
+Complex tables, sidebars, and irregular layouts may still need manual review.
 Scanned PDFs require OCR first; password-protected PDFs must be unlocked.
 PDF extraction happens in the browser. Speech uses the browser's Web Speech API;
 voice availability and network use depend on the device and selected voice.

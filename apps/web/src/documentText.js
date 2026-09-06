@@ -1,3 +1,5 @@
+import { pdfTextBoxes, orderPdfText } from './pdfReadingOrder.js';
+
 export async function documentText(bytes, filename) {
   const extension = filename.split('.').pop().toLowerCase();
   if (extension === 'pdf') {
@@ -11,7 +13,7 @@ export async function documentText(bytes, filename) {
       for (let number = 1; number <= pdf.numPages; number++) {
         const page = await pdf.getPage(number);
         const content = await page.getTextContent();
-        pages.push(content.items.map(item => item.str === undefined ? '' : item.str + (item.hasEOL ? '\n' : ' ')).join(''));
+        pages.push(orderPdfText(pdfTextBoxes(content.items, page.getViewport({ scale: 1 }))));
         page.cleanup();
       }
       const text = pages.join('\n\n').trim();
