@@ -1,6 +1,7 @@
 import { ref, onBeforeUnmount } from 'vue';
 import { useApi } from './useApi.js';
-import { documentText } from '../documentText.js';
+import { documentContent } from '../documentText.js';
+import { assembleReading } from '../listeningProgress.js';
 
 export function usePreparedDocument(onText) {
   const { request } = useApi();
@@ -34,11 +35,8 @@ export function usePreparedDocument(onText) {
         if (reader.status === 'ready' || reader.status === 'fallback') {
           const byId = new Map(reader.blocks.map(block => [block.id, block]));
           blocks.value = reader.order.map(id => byId.get(id));
-          onText(blocks.value.map((block, i) => {
-            const previous = blocks.value[i - 1];
-            const sameLine = previous && block.page === previous.page && typeof block.y === 'number' && Math.abs(block.y - previous.y) < 3;
-            return (i ? (sameLine ? ' ' : '\n\n') : '') + block.text;
-          }).join(''));
+          const reading = assembleReading(blocks.value, /\.pdf$/i.test(doc.filename));
+          onText(reading.text, reading);
           canRetry.value = reader.status === 'fallback';
           preparationNotice.value = reader.notice || 'Reading order prepared. Original wording preserved.';
           preparing.value = false;
@@ -52,6 +50,7 @@ export function usePreparedDocument(onText) {
         preparing.value = false;
         preparationError.value = error.message;
         canRetry.value = true;
+        if (initial && !retry) await original();
       }
     };
     await poll(true);
@@ -64,10 +63,11 @@ export function usePreparedDocument(onText) {
     preparationError.value = '';
     try {
       const bytes = await request(`/api/documents/${current.id}/content`, { binary: true, signal: controller.signal });
-      const text = await documentText(bytes, current.filename);
+      const content = await documentContent(bytes, current.filename);
       if (token !== version) return;
-      blocks.value = [];
-      onText(text);
+      blocks.value = content.blocks;
+      const reading = assembleReading(blocks.value, /\.pdf$/i.test(current.filename));
+      onText(reading.text, reading);
       preparationNotice.value = 'Using the original extracted reading order.';
       canRetry.value = true;
     } catch (error) {

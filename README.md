@@ -58,19 +58,40 @@ available. No default shared tenant is assigned to a Google login.
 
 ## Read aloud
 
-The home page is the **Reader**. Upload an article or PDF in **Documents**;
-after upload, it opens in the reader with its full text visible. Press
-**Read aloud** to start listening. Choose another document from the reader
-selector, or use **Open in reader** in the library. Document reader URLs can
-be bookmarked and reopened.
-Admins and members can listen, pause, resume, stop, choose a language/region
-and male, female, or no voice preference, and
-set playback speed (0.5×–2×). Preferences are saved on the device; the reader
-selects an installed voice automatically. Locale takes priority over voice gender.
-Browser voices have no standard gender metadata, so recognized voice names and
-explicit provider labels are used; unmatched preferences show a fallback notice.
-The reader shows the selected voice, current passage, and full text.
-Switching documents or leaving the page stops playback.
+The home page is **Listen**: your reading list, ready to listen. Upload a book or
+article in **Uploads** and it opens here with its title, estimated listening time,
+and **Start listening**. Voice and pronunciation preferences are below the main
+controls, and **Read along** expands the original text.
+
+**Choose where to start** offers the beginning, recognized chapter headings, or a
+PDF page, with a text preview before confirming. Chapter detection is heuristic
+(English chapter/part labels and Markdown headings), not a publisher-provided table
+of contents. PDF numbers are physical file pages, not printed book page labels.
+Blank/scanned pages without readable text cannot be selected. The default is always
+the beginning; users are not forced to choose a page after upload.
+
+Progress is saved at passage boundaries in this browser, separately for each tenant
+and upload. **Continue listening** restores the current passage, chapter/page label,
+and approximate remaining time. **Listen** reopens the most recently saved unfinished
+read in the current library. Progress survives voice, speed and pronunciation changes;
+a unique text anchor can relocate a saved position when reading-order preparation
+moves it. There is no cross-device progress sync. Clearing browser data removes it.
+
+**Back/Forward** move one passage, not a fixed number of seconds. Pause, resume and
+stop preserve your place. **Choose where to start → Beginning** restarts a read, and
+**Listen again** restarts a finished one. Duration estimates use 150 words/minute at
+1× and adjust with speed; they are estimates, not measured audio durations. A sleep
+timer (5/15/30/60 minutes) stops playback and saves the passage. Browser suspension
+can delay timer callbacks; the deadline is also checked before the next passage and
+when the page becomes visible again. Supported system media controls expose
+play/pause/stop and previous/next passage. Keep the page open: background/lock-screen
+playback depends on the browser and OS and is not guaranteed by this web app.
+
+Choose a language/region and male, female, or no voice preference once. Voice and
+playback settings persist on this browser. Device voices are selected automatically;
+locale takes priority over gender. Recognized names supply gender hints because the
+Web Speech API has no standard gender metadata. Switching uploads or leaving the
+listening page stops playback and saves progress.
 
 Supports text PDFs and UTF-8 TXT, Markdown, CSV, TSV, JSON, and log files.
 PDF reading order uses text positions to detect ordinary two-column layouts,

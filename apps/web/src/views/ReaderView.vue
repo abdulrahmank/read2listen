@@ -4,14 +4,25 @@ import { useRoute, useRouter } from 'vue-router';
 import { useDocuments } from '../composables/useDocuments.js';
 import { useTenant } from '../composables/useTenant.js';
 import DocumentReader from '../components/DocumentReader.vue';
+import { progressKey } from '../listeningProgress.js';
 
 const route = useRoute();
 const router = useRouter();
 const { documents, loading, error, load } = useDocuments();
-const { isAdmin } = useTenant();
+const { isAdmin, tenant } = useTenant();
+function recentRead() {
+  let recent;
+  for (const doc of documents.value) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(progressKey(tenant.value?.id, doc.id)));
+      if (saved?.version === 1 && saved.offset > 0 && !saved.finished && Number.isFinite(saved.updatedAt) && (!recent || saved.updatedAt > recent.updatedAt)) recent = { doc, updatedAt: saved.updatedAt };
+    } catch {}
+  }
+  return recent?.doc || documents.value[0];
+}
 const selected = computed(() => route.params.documentId
   ? documents.value.find(doc => doc.id === route.params.documentId)
-  : documents.value[0]);
+  : recentRead());
 
 function selectDocument(event) {
   router.push({ name: 'reader-document', params: { documentId: event.target.value } });
@@ -24,7 +35,7 @@ onMounted(load);
     <header class="reader-heading">
       <div>
         <h1>Listen to your books and articles</h1>
-        <p>Your books and articles, ready to read and listen.</p>
+        <p>Your reading list, ready to listen.</p>
       </div>
       <router-link v-if="isAdmin()" class="reader-upload" to="/documents">Upload a book or article</router-link>
     </header>
@@ -55,7 +66,7 @@ onMounted(load);
       </section>
       <section v-else class="panel empty-state">
         <h2>Your next read starts here</h2>
-        <p v-if="isAdmin()">Upload a book or article. It will open here, ready for you to press Read aloud.</p>
+        <p v-if="isAdmin()">Upload a book or article. It will open here, ready for you to press Start listening.</p>
         <p v-else>Your library is empty. Ask an admin to add a book or article, then come here to listen.</p>
         <router-link v-if="isAdmin()" class="reader-upload" to="/documents">Upload your first book or article</router-link>
       </section>
