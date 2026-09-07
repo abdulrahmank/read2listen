@@ -14,7 +14,7 @@ export class LocalSpeech {
     if (this.worker) return;
     this.worker = new Worker(new URL('./localSpeech.worker.js', import.meta.url), { type: 'module' });
     this.worker.onmessage = ({ data }) => {
-      if (data.progress) { this.onProgress?.(data.progress); return; }
+      if (data.progress) { if (this.pending.size) this.onProgress?.(data.progress); return; }
       const request = this.pending.get(data.id);
       if (!request) return;
       this.pending.delete(data.id);
@@ -40,7 +40,7 @@ export class LocalSpeech {
     const samples = await new Promise((resolve, reject) => {
       const id = ++this.nextId;
       this.pending.set(id, { resolve, reject });
-      this.worker.postMessage({ id, text, voice, speed });
+      this.worker.postMessage({ id, text, voice, speed, run });
     });
     if (cache && epoch === this.cacheEpoch && samples.byteLength <= MAX_CACHE_BYTES) {
       try {
@@ -57,11 +57,24 @@ export class LocalSpeech {
     return samples;
   }
   async clearCache() { this.cacheEpoch++; if (globalThis.caches) await caches.delete(CACHE); }
-  dispose(error = new Error('Local speech stopped.')) {
+  cancel(error = new Error('Local speech stopped.')) {
     this.runEpoch++;
-    this.worker?.terminate();
-    this.worker = null;
+    this.worker?.postMessage({ type: 'cancel', run: this.runEpoch });
     for (const request of this.pending.values()) request.reject(error);
     this.pending.clear();
   }
+  dispose(error = new Error('Local speech stopped.')) {
+    this.cancel(error);
+    this.worker?.terminate();
+    this.worker = null;
+  }
+}
+
+// One model instance per browser tab, shared across books. Cancelling playback
+// must not interrupt model downloads or throw away the initialized runtime.
+let sharedSpeech;
+export function getLocalSpeech(onProgress) {
+  sharedSpeech ||= new LocalSpeech();
+  sharedSpeech.onProgress = onProgress;
+  return sharedSpeech;
 }

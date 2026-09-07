@@ -30,9 +30,21 @@ test('worker failures reject pending audio and allow retry; cancellation rejects
     const pending = speech.samples('Third sentence.', 'af_heart', 1);
     const cancelled = assert.rejects(pending, /stopped/);
     await ready;
-    speech.dispose();
+    speech.cancel();
     await cancelled;
     assert.equal(speech.pending.size, 0);
+    assert.equal(workers[1].terminated, undefined);
+    ready = sent();
+    const resumed = speech.samples('Continue reading.', 'af_heart', 1);
+    await ready;
+    assert.equal(workers.length, 2, 'cancellation reuses the initialized worker');
+    assert.equal(workers[1].message.run, speech.runEpoch);
+    const id = workers[1].message.id;
+    workers[1].onmessage({ data: { id: id - 1, samples: new Float32Array([9]) } });
+    assert.equal(speech.pending.size, 1, 'late cancelled audio cannot complete a new request');
+    workers[1].onmessage({ data: { id, samples: new Float32Array([0.3]) } });
+    assert.equal((await resumed).length, 1);
+    speech.dispose();
     assert.equal(workers[1].terminated, true);
   } finally { speech.dispose(); globalThis.Worker = previous; }
 });

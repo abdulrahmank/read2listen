@@ -5,7 +5,7 @@ import { useTenant } from '../composables/useTenant.js';
 import { chooseVoice, loadVoicePreferences } from '../voicePreferences.js';
 import { splitSpeech } from '../speech.js';
 import { localVoice, narrationSegments, parsePronunciations } from '../localNarration.js';
-import { LocalSpeech } from '../localSpeech.js';
+import { getLocalSpeech } from '../localSpeech.js';
 import { chapterHeadings, passageRanges, passageAt, estimatedMinutes, durationLabel, progressKey, saveProgress, restoreProgress } from '../listeningProgress.js';
 
 const props = defineProps({ document: { type: Object, required: true } });
@@ -42,9 +42,9 @@ const localSupported = !!window.AudioContext && !!window.Worker && !!window.WebA
 const selectedLocalVoice = computed(() => localVoice(locale.value, gender.value));
 const active = computed(() => ['playing', 'paused', 'generating'].includes(state.value));
 const readyVoice = computed(() => engine.value === 'local' ? selectedLocalVoice.value && localSupported : matchedVoice.value.voice && supported);
-const local = new LocalSpeech(progress => {
+const local = getLocalSpeech(progress => {
   if (!active.value || engine.value !== 'local') return;
-  if (progress.status === 'progress') localStatus.value = `Downloading voice model: ${Math.round(progress.progress || 0)}%`;
+  if (progress.status === 'progress') localStatus.value = `${progress.file?.endsWith('.onnx') ? 'Loading speech model' : 'Loading voice configuration'}: ${Math.round(progress.progress || 0)}%`;
   else if (progress.status === 'ready') localStatus.value = 'Voice model ready.';
   else if (progress.status === 'synthesizing' && state.value === 'generating') localStatus.value = 'Preparing your next passage…';
 });
@@ -87,7 +87,7 @@ function halt() {
   generation++;
   if (source) { source.onended = null; source.stop(); source = null; }
   finishSource?.(); finishSource = null;
-  if (active.value) local.dispose();
+  if (active.value) local.cancel();
   if (supported) synth.cancel();
   utterance = null;
   localStatus.value = '';
@@ -166,7 +166,7 @@ function speakNext(token) {
 }
 async function playLocal(token) {
   state.value = 'generating';
-  localStatus.value = 'Loading local voice. The first download can take a few minutes.';
+  localStatus.value = 'Preparing local voice. First use downloads the model; later runs load saved files.';
   try {
     audioContext ||= new AudioContext({ sampleRate: 24000 });
     await audioContext.resume();
@@ -285,7 +285,7 @@ onMounted(() => {
   }
 });
 onBeforeUnmount(() => {
-  stop(); clearInterval(interval); local.dispose(); audioContext?.close();
+  stop(); clearInterval(interval); local.cancel(); local.onProgress = null; audioContext?.close();
   synth?.removeEventListener('voiceschanged', refreshVoices);
   window.removeEventListener('pagehide', onVisibility);
   document.removeEventListener('visibilitychange', onVisibility);

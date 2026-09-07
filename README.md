@@ -130,7 +130,13 @@ regions use the US accent; other languages retain the device-voice option.
 
 The first play downloads the quantized model and tokenizer from Hugging Face, plus
 the selected voice. Downloads are cached by the browser when storage is available.
-The WASM runtime is served with the app. First-time loading and CPU inference can be
+The WASM runtime is bundled and served with the app, not fetched from a third-party CDN.
+One speech worker is retained per browser tab across stops, skips and book changes.
+Cancelling playback discards queued audio while allowing model initialization to finish;
+it does not restart the model download. Reloading the tab must initialize the model
+again from cached files. The loading indicator includes cache reads, not just downloads.
+Browser eviction or clearing site data can still require another download.
+First-time loading and CPU inference can be
 slow on some devices. Keep the reader open while listening; background playback and
 full offline app startup are not guaranteed. Once its assets are cached, the speech
 engine itself can run offline. Documents still use the existing authenticated server
