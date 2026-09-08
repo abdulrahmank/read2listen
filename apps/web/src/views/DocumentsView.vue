@@ -3,16 +3,15 @@ import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useDocuments } from '../composables/useDocuments.js';
 import { useTenant } from '../composables/useTenant.js';
 import FileIcon from '../components/FileIcon.vue';
+import BookCover from '../components/BookCover.vue';
+import UploadBook from '../components/UploadBook.vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
 
-const { documents, loading, error, load, create, update, remove } = useDocuments();
+const { documents, loading, error, load, update, remove } = useDocuments();
 const { isAdmin } = useTenant();
 
-const picker = ref(null);
-const dragOver = ref(0);
-const uploadingCount = ref(0);
 const actionError = ref('');
 
 const selectedId = ref(null);
@@ -37,35 +36,7 @@ const formatSize = (bytes) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-async function uploadFiles(files) {
-  if (!files.length || uploadingCount.value) return;
-  actionError.value = '';
-  uploadingCount.value = files.length;
-  let lastUploaded = null;
-  try {
-    for (const file of files) {
-      lastUploaded = await create({ file });
-      uploadingCount.value -= 1;
-    }
-    // The reader is the next step after a successful upload.
-    if (lastUploaded) await router.push({ name: 'reader-document', params: { documentId: lastUploaded.id } });
-  } catch (e) {
-    actionError.value = e.message;
-  } finally {
-    uploadingCount.value = 0;
-  }
-}
-
-function onDrop(event) {
-  dragOver.value = 0;
-  if (!isAdmin()) return;
-  uploadFiles([...event.dataTransfer.files]);
-}
-
-function onPick(event) {
-  uploadFiles([...event.target.files]);
-  event.target.value = '';
-}
+async function uploaded(doc) { documents.value = [doc, ...documents.value.filter(item => item.id !== doc.id)]; await router.push({ name: 'reader-document', params: { documentId: doc.id } }); }
 
 async function saveDetails() {
   if (!selected.value) return;
@@ -97,8 +68,9 @@ async function removeSelected() {
 
 <template>
   <div class="page wide">
-    <h1>Uploads</h1>
-    <p>Upload a book or article as a PDF or text file, then start listening.</p>
+    <p class="eyebrow">GOOD IDEAS BELONG HERE</p>
+    <h1>My uploads</h1>
+    <p class="library-intro">Your books. Your articles. All ready for a little listening time.</p>
 
     <p v-if="!isAdmin()" class="empty-state" style="text-align: left; padding: 0 0 16px">
       You're using a member key — uploads are read-only. Ask a tenant admin
@@ -110,49 +82,14 @@ async function removeSelected() {
 
     <div class="docs-layout">
       <div class="docs-main">
-        <div
-          v-if="isAdmin()"
-          class="dropzone"
-          :class="{ over: dragOver > 0, busy: uploadingCount > 0 }"
-          @click="picker.click()"
-          @dragenter.prevent="dragOver++"
-          @dragover.prevent
-          @dragleave.prevent="dragOver--"
-          @drop.prevent="onDrop"
-        >
-          <input type="file" multiple hidden ref="picker" @change="onPick" />
-          <template v-if="uploadingCount > 0">
-            <strong>Uploading {{ uploadingCount }} file{{ uploadingCount === 1 ? '' : 's' }}…</strong>
-          </template>
-          <template v-else>
-            <svg class="dropzone-icon" width="28" height="28" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-              <path d="M12 3l5.5 5.5h-3.5V15h-4V8.5H6.5L12 3z" />
-              <rect x="4" y="18" width="16" height="3" rx="1.5" />
-            </svg>
-            <strong>Drop files here</strong>
-            <span>or click to browse — details can be filled in after</span>
-          </template>
-        </div>
-
+        <UploadBook v-if="isAdmin()" @uploaded="uploaded" />
+        <h2 class="library-count">Your library <span>{{ documents.length }}</span></h2>
+        <p v-if="loading" role="status">Loading your reads…</p>
         <div class="doc-grid">
-          <div
-            v-for="doc in documents"
-            :key="doc.id"
-            class="doc-card"
-            role="button"
-            tabindex="0"
-            :aria-label="`View details for ${doc.name}`"
-            @keydown.enter.prevent="selectedId = doc.id"
-            @keydown.space.prevent="selectedId = doc.id"
-            :class="{ selected: doc.id === selectedId }"
-            @click="selectedId = doc.id === selectedId ? null : doc.id"
-          >
-            <div class="doc-icon"><FileIcon :filename="doc.filename" /></div>
-            <div class="doc-title">{{ doc.name }}</div>
-            <div class="doc-file">{{ doc.filename }}</div>
-            <div class="doc-meta">v{{ doc.version }} · {{ doc.date }}</div>
-            <router-link :to="{ name: 'reader-document', params: { documentId: doc.id } }" @click.stop @keydown.stop>Listen now</router-link>
-          </div>
+          <article v-for="doc in documents" :key="doc.id" class="doc-card" :class="{ selected: doc.id === selectedId }">
+            <router-link class="library-book-link" :to="{ name: 'reader-document', params: { documentId: doc.id } }" :aria-label="`Listen to ${doc.name}`"><BookCover :title="doc.name" compact /><h3>{{ doc.name }}</h3><span>{{ doc.filename.split('.').pop().toUpperCase() }} · {{ formatSize(doc.size) }}</span></router-link>
+            <div class="book-actions"><router-link :to="{ name: 'reader-document', params: { documentId: doc.id } }">Listen now →</router-link><button @click="selectedId = doc.id === selectedId ? null : doc.id" :aria-label="`Details for ${doc.name}`">Details</button></div>
+          </article>
           <div v-if="!loading && documents.length === 0" class="empty-state" style="grid-column: 1 / -1">
             No uploads yet{{ isAdmin() ? ' — drop a file above to get started.' : '.' }}
           </div>
@@ -213,3 +150,9 @@ async function removeSelected() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.library-intro { color: var(--muted); font-size: 14px; margin: -4px 0 30px; }.docs-layout { gap: 24px; }.doc-grid { grid-template-columns: repeat(auto-fill,minmax(175px,1fr)); gap: 20px; }.library-count { font-size: 20px; margin: 32px 0 18px; }.library-count span { font-size: 12px; background: #ecf2e3; color: var(--accent); padding: 4px 9px; border-radius: 8px; margin-left: 6px; }.doc-card { cursor: default; border-radius: 17px; padding: 15px; gap: 12px; }.library-book-link { text-decoration: none; color: var(--text); }.library-book-link h3 { font-size: 14px; line-height: 1.4; margin: 18px 0 5px; overflow-wrap: anywhere; }.library-book-link > span { font-size: 10px; color: var(--muted); }.book-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; }.book-actions a { font-size: 11px; color: var(--accent); font-weight: 700; text-decoration: none; }.book-actions button { background: none; border: 0; font-size: 10px; padding: 5px; color: var(--muted); }.doc-sidebar { top: 24px; width: 290px; }.doc-sidebar > a { color: var(--accent); }.doc-sidebar input,.doc-sidebar textarea { font-size: 13px; }
+@media(max-width:1000px) { .docs-layout { flex-direction: column; }.doc-sidebar { width: 100%; position: static; order: -1; }.docs-main { width: 100%; } }
+@media(max-width:460px) { .doc-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }.doc-card { padding: 10px; }.book-actions { gap: 4px; }.book-actions a { font-size: 10px; } }
+</style>

@@ -24,7 +24,7 @@ export function useDocuments() {
     }
   }
 
-  async function create({ file, name, version, date, use }) {
+  async function create({ file, name, version, date, use, refresh = true }) {
     const formData = new FormData();
     formData.append('file', file);
     // Metadata is optional — the server defaults anything omitted, and the
@@ -33,7 +33,7 @@ export function useDocuments() {
       if (value !== undefined && value !== '') formData.append(key, value);
     }
     const data = await upload('/api/documents', formData);
-    await load();
+    if (refresh) await load();
     return data.document;
   }
 

@@ -8,6 +8,7 @@ import { localVoice, narrationSegments, parsePronunciations } from '../localNarr
 import { getLocalSpeech } from '../localSpeech.js';
 import { chapterHeadings, passageRanges, passageAt, estimatedMinutes, durationLabel, progressKey, saveProgress, restoreProgress } from '../listeningProgress.js';
 
+const emit = defineEmits(['progress']);
 const props = defineProps({ document: { type: Object, required: true } });
 const { tenant } = useTenant();
 const synth = window.speechSynthesis;
@@ -72,7 +73,7 @@ const sleepChoice = ref('0');
 const sleepDeadline = ref(0);
 const clock = ref(Date.now());
 const sleepRemaining = computed(() => Math.max(0, Math.ceil((sleepDeadline.value - clock.value) / 60000)));
-const optionsOpen = ref(!gender.value);
+const optionsOpen = ref(false);
 let audioContext, source, finishSource, utterance, interval;
 let loadedKey = '';
 let generation = 0;
@@ -82,6 +83,7 @@ let devicePart = 0;
 function remember(finished = state.value === 'finished') {
   if (!text.value) return;
   if (!saveProgress(localStorage, loadedKey || key.value, text.value, offset.value, finished)) storageNotice.value = 'Your browser could not save your place. Keep this page open to continue listening.';
+  emit('progress');
 }
 function halt() {
   generation++;
@@ -294,6 +296,9 @@ onBeforeUnmount(() => {
     navigator.mediaSession.metadata = null; navigator.mediaSession.playbackState = 'none';
   }
 });
+const readyForSession = computed(() => !!text.value && !loading.value && !!readyVoice.value && !!gender.value);
+function startDaily() { if (!readyForSession.value) return; sleepChoice.value = '10'; play(); }
+defineExpose({ startDaily, readyForSession });
 </script>
 
 <template>
@@ -307,24 +312,30 @@ onBeforeUnmount(() => {
     </div>
     <template v-if="text">
       <div class="listening-summary">
-        <p class="duration">About {{ totalTime }} of listening <span>at {{ rate }}×</span></p>
+        <p class="duration">{{ totalTime }} <span>estimated listening time · {{ rate }}×</span></p>
         <p v-if="state === 'finished'">You’ve finished this read.</p>
         <p v-else-if="offset > 0">{{ progress }}% complete · About {{ remainingTime }} left</p>
         <p v-if="currentChapter || currentPage" class="voice-note">{{ currentChapter?.title }}{{ currentChapter && currentPage ? ' · ' : '' }}{{ currentPage ? `PDF page ${currentPage.number}` : '' }}</p>
       </div>
+      <fieldset v-if="!gender" class="first-voice">
+        <legend>Make this voice yours</legend>
+        <p>{{ localeLabel(locale) }} <button class="text-action" @click="optionsOpen = true">Change language</button></p>
+        <div><button @click="gender = 'female'">Female voice</button><button @click="gender = 'male'">Male voice</button><button @click="gender = 'any'">No preference</button></div>
+      </fieldset>
+      <p v-if="!readyVoice" class="voice-note">A voice isn’t available for these settings. <button @click="optionsOpen = true">Choose a voice</button></p>
       <div class="reader-controls" aria-label="Playback controls">
-        <button :disabled="!ranges.length || position === 0 || loading" @click="skip(-1)" aria-label="Previous passage">↶ Back</button>
+        <button :disabled="!ranges.length || position === 0 || loading" @click="skip(-1)" aria-label="Previous passage">↶</button>
         <button v-if="state !== 'playing' && state !== 'generating'" class="primary start-listening" :disabled="!readyVoice || loading || !!pronunciationError" @click="play">{{ state === 'paused' ? 'Resume listening' : state === 'finished' ? 'Listen again' : offset > 0 ? 'Continue listening' : 'Start listening' }}</button>
         <button v-else class="primary start-listening" @click="pause">Pause</button>
-        <button :disabled="!ranges.length || position >= ranges.length - 1 || loading" @click="skip(1)" aria-label="Next passage">Forward ↷</button>
+        <button :disabled="!ranges.length || position >= ranges.length - 1 || loading" @click="skip(1)" aria-label="Next passage">↷</button>
         <button v-if="active" @click="stop">Stop</button>
       </div>
       <progress :value="offset" :max="text.length" aria-label="Listening progress"></progress>
-      <p role="status">{{ state === 'finished' ? 'Finished listening' : state === 'paused' ? 'Paused — your place is saved' : state === 'generating' ? 'Preparing audio…' : state === 'playing' ? `Listening to passage ${position + 1} of ${ranges.length}` : offset > 0 ? 'Your place is saved. Continue when you’re ready.' : 'Ready when you are.' }}</p>
+      <p role="status">{{ state === 'finished' ? 'Finished listening' : state === 'paused' ? 'Paused — your place is saved' : state === 'generating' ? 'Preparing audio…' : state === 'playing' ? 'You’re listening. Enjoy your moment.' : offset > 0 ? 'Your place is saved. Continue when you’re ready.' : 'Ready when you are.' }}</p>
       <p v-if="localStatus" class="voice-note" role="status">{{ localStatus }}</p>
       <p v-if="notice" class="voice-note" role="status">{{ notice }}</p>
       <p v-if="storageNotice" class="voice-note" role="status">{{ storageNotice }}</p>
-      <p v-else class="voice-note">Your place is saved on this browser at the current passage.</p>
+      <p v-else class="save-note">Progress saves here automatically.</p>
       <div class="quick-controls">
         <div>
           <label for="reader-speed">Speed</label>
@@ -336,7 +347,7 @@ onBeforeUnmount(() => {
           <label for="sleep-timer">Sleep timer</label>
           <select id="sleep-timer" v-model="sleepChoice">
             <option value="0">Off</option>
-            <option v-for="minutes in [5, 15, 30, 60]" :key="minutes" :value="String(minutes)">{{ minutes }} minutes</option>
+            <option v-for="minutes in [5, 10, 15, 30, 60]" :key="minutes" :value="String(minutes)">{{ minutes }} minutes</option>
           </select>
         </div>
       </div>
@@ -367,10 +378,10 @@ onBeforeUnmount(() => {
         <p v-if="!supported && engine === 'device'" class="voice-note">Device voices are unavailable. Choose a local voice or try another browser.</p>
       <label for="reader-engine">Narration</label>
       <select id="reader-engine" v-model="engine" :disabled="active">
-        <option value="device">Device voices</option>
-        <option value="local" :disabled="!localSupported">Natural voice on this device · English</option>
+        <option value="device">Device voice · Ready to use</option>
+        <option value="local" :disabled="!localSupported">Natural voice · English · Download on first use</option>
       </select>
-      <p v-if="engine === 'local'" class="voice-note">Downloads a voice model on first play. Speech is generated on this device without an API call. Saved audio uses up to 128 MB of browser storage. US and UK English are supported.</p>
+      <p v-if="engine === 'local'" class="voice-note">A more natural English voice, generated on your device. First use needs a model download and may take a few minutes.</p>
       <p v-if="engine === 'local' && !selectedLocalVoice" class="voice-note">Choose English (United States or United Kingdom), or use device voices for this language.</p>
       <div class="voice-preferences">
         <div>
@@ -432,4 +443,14 @@ select, progress { width: 100%; margin: 4px 0 12px; }
 .reader-passage { padding: 12px; background: #eef5ff; color: #172338; border-radius: 8px; }
 .reader-text { border-top: 1px solid var(--border); margin-top: 28px; padding-top: 28px; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 20px/1.85 Georgia, serif; margin: 0; }
+</style>
+
+<style scoped>
+.document-reader { border-top: 1px solid var(--border); padding-top: 18px; }.listening-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; align-items: baseline; }.listening-summary .duration { font-size: 15px; font-weight: 800; margin: 0; }.duration span { font-size: 10px; font-weight: 400; margin-left: 3px; }.listening-summary > p:not(.duration) { font-size: 11px; color: var(--muted); margin: 5px 0; }.listening-summary .voice-note { flex-basis: 100%; }.reader-controls { justify-content: center; margin: 25px 0 20px; gap: 13px; }.reader-controls > button[aria-label] { border-radius: 50%; width: 43px; height: 43px; padding: 0; font-size: 27px; line-height: 1; background: #f6f8f1; }.start-listening { min-height: 50px; min-width: 185px; font-size: 15px; border-radius: 14px; padding: 12px 20px; }.reader-controls > button:last-child:not([aria-label]):not(.primary) { padding: 4px 8px; background: none; border: 0; color: var(--muted); font-size: 11px; min-height: 30px; }
+progress { appearance: none; height: 7px; border: 0; border-radius: 10px; overflow: hidden; background: #edf0e7; accent-color: #7ca848; margin-bottom: 6px; }progress::-webkit-progress-bar { background: #edf0e7; }progress::-webkit-progress-value { background: #87b24f; border-radius: 10px; }progress::-moz-progress-bar { background: #87b24f; }.document-reader > p[role="status"] { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.6; margin: 6px 0; }.save-note { text-align: center; font-size: 10px; color: var(--muted); margin: 3px 0 20px; }.quick-controls { gap: 12px; padding: 12px; background: #f8f9f4; border-radius: 13px; margin-top: 17px; }.quick-controls label { font-size: 10px; font-weight: 600; }.quick-controls select { font-size: 12px; margin-bottom: 0; background: white; min-height: 36px; padding: 6px 10px; }.start-location,.voice-settings,.preparation-details { margin-top: 8px; }.start-location summary,.voice-settings summary,.reader-text summary,.preparation-details summary { font-size: 12px; padding: 14px 1px; }.voice-note { font-size: 11px; line-height: 1.7; }.reader-text { margin-top: 8px; padding-top: 0; }.reader-text pre { font-size: 18px; padding-top: 16px; }.reader-passage { background: #f0f5e8; font: 16px/1.7 Georgia,serif; color: #425436; padding: 18px; }.preparation-details { color: var(--muted); }.voice-settings select,.start-location select { font-size: 13px; }.voice-settings label,.start-location label { font-size: 11px; }.voice-settings button,.start-location button,.preparation-details button { font-size: 12px; }.preparation-details button { margin: 0 8px 8px 0; }
+@media(max-width:400px) { .reader-controls { gap: 8px; }.start-listening { min-width: 155px; padding: 10px 12px; font-size: 14px; }.reader-controls > button[aria-label] { width: 36px; height: 36px; }.listening-summary .duration span { display: block; margin: 4px 0; } }
+</style>
+
+<style scoped>
+.first-voice { border: 1px solid #dfe8cd; border-radius: 14px; padding: 12px; margin: 18px 0 0; background: #f8fbf2; }.first-voice legend { font-size: 12px; font-weight: 700; padding: 0 6px; }.first-voice p { margin: 0 0 10px; font-size: 11px; color: var(--muted); }.first-voice > div { display: flex; flex-wrap: wrap; gap: 6px; }.first-voice button { font-size: 11px; min-height: 36px; padding: 7px 10px; }.first-voice .text-action { background: none; border: 0; color: var(--accent); text-decoration: underline; padding: 0 8px; min-height: 24px; }
 </style>

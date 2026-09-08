@@ -42,6 +42,9 @@ export function usePreparedDocument(onText) {
           preparing.value = false;
         } else if (reader.status === 'error') throw new Error(reader.message);
         else {
+          // First listen should not wait for background AI preparation. The local
+          // PDF extractor already handles ordinary columns. Reopen to use the cache.
+          if (initial && !retry) { await original(); return; }
           if (Date.now() - started > 660000) throw new Error('Preparation is taking longer than expected. Retry or use the original reading order.');
           timer = setTimeout(() => poll(), 1500);
         }

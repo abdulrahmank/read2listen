@@ -58,7 +58,21 @@ available. No default shared tenant is assigned to a Google login.
 
 ## Read aloud
 
-The home page is **Listen**: your reading list, ready to listen. Upload a book or
+The home page is **Listen**: your reading list, ready to listen. The interface uses
+an illustrated listening shelf, a focused player, a sidebar on desktop and bottom
+navigation on mobile. Upload directly from the home page or **My uploads**; select
+one PDF/text file, with no metadata form before listening. Unsupported and empty
+files show an inline error. Uploads navigate directly to the new player without
+extra library refresh requests. Generated cover artwork is decorative; no book
+cover metadata is inferred from the file.
+
+New uploads can start with local extraction while server reading-order preparation
+continues; reopening uses the prepared cache when ready. First-time voice preference
+choices sit alongside playback, with detailed voice/download settings expandable.
+The **Listen for 10 minutes** action starts playback with a ten-minute sleep timer.
+This is an optional listening session, not a measured daily goal or streak.
+
+ Upload a book or
 article in **Uploads** and it opens here with its title, estimated listening time,
 and **Start listening**. Voice and pronunciation preferences are below the main
 controls, and **Read along** expands the original text.
@@ -81,7 +95,7 @@ moves it. There is no cross-device progress sync. Clearing browser data removes 
 stop preserve your place. **Choose where to start → Beginning** restarts a read, and
 **Listen again** restarts a finished one. Duration estimates use 150 words/minute at
 1× and adjust with speed; they are estimates, not measured audio durations. A sleep
-timer (5/15/30/60 minutes) stops playback and saves the passage. Browser suspension
+timer (5/10/15/30/60 minutes) stops playback and saves the passage. Browser suspension
 can delay timer callbacks; the deadline is also checked before the next passage and
 when the page becomes visible again. Supported system media controls expose
 play/pause/stop and previous/next passage. Keep the page open: background/lock-screen
